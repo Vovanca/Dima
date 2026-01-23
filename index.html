@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile Football 2026</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #2ecc71; /* Цвет травы */
+            font-family: 'Arial', sans-serif;
+            touch-action: none; /* Отключает зум и прокрутку при тапах */
+        }
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(circle, #27ae60 20%, #2ecc71 80%);
+        }
+        #ball {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background-image: url('https://cdn-icons-png.flaticon.com'); /* Иконка мяча */
+            background-size: cover;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 10;
+        }
+        #ui {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            pointer-events: none;
+        }
+        .particle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background: white;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div id="ui">
+        Счет: <span id="score">0</span><br>
+        Рекорд: <span id="best">0</span>
+    </div>
+    <div id="ball"></div>
+</div>
+
+<script>
+    const ball = document.getElementById('ball');
+    const scoreElement = document.getElementById('score');
+    const bestElement = document.getElementById('best');
+    const container = document.getElementById('game-container');
+
+    let score = 0;
+    let best = localStorage.getItem('fb-best') || 0;
+    bestElement.textContent = best;
+
+    // Физика мяча
+    let x = window.innerWidth / 2 - 40;
+    let y = window.innerHeight / 2;
+    let vx = 0;
+    let vy = 0;
+    let gravity = 0.4;
+    let friction = 0.98;
+    let rotation = 0;
+
+    function initBall() {
+        ball.style.left = x + 'px';
+        ball.style.top = y + 'px';
+    }
+
+    function update() {
+        vy += gravity; // Гравитация тянет вниз
+        x += vx;
+        y += vy;
+        vx *= friction; // Трение воздуха
+
+        // Отскок от стен
+        if (x + 80 > window.innerWidth || x < 0) {
+            vx *= -1;
+        }
+
+        // Проигрыш (упал за нижний край)
+        if (y > window.innerHeight) {
+            if (score > best) {
+                best = score;
+                localStorage.setItem('fb-best', best);
+                bestElement.textContent = best;
+            }
+            score = 0;
+            scoreElement.textContent = score;
+            resetBall();
+        }
+
+        // Ограничение потолка
+        if (y < 0) {
+            y = 0;
+            vy *= -0.5;
+        }
+
+        ball.style.transform = `translate(${x}px, ${y}px) rotate(${rotation}deg)`;
+        rotation += vx * 2;
+
+        requestAnimationFrame(update);
+    }
+
+    function resetBall() {
+        x = window.innerWidth / 2 - 40;
+        y = window.innerHeight / 2;
+        vx = 0;
+        vy = 0;
+    }
+
+    // Обработка удара (тапа)
+    function kick(e) {
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+        // Проверяем, попал ли тап по мячу
+        const ballRect = ball.getBoundingClientRect();
+        const ballCenterX = ballRect.left + 40;
+        const ballCenterY = ballRect.top + 40;
+
+        // Расстояние от центра тапа до центра мяча
+        const dist = Math.hypot(clientX - ballCenterX, clientY - ballCenterY);
+
+        if (dist < 60) {
+            // Удар!
+            score++;
+            scoreElement.textContent = score;
+
+            // Направление удара зависит от того, в какую часть мяча попали
+            vx = (ballCenterX - clientX) * 0.5;
+            vy = -15; // Подбрасываем вверх
+
+            createParticles(clientX, clientY);
+        }
+    }
+
+    function createParticles(x, y) {
+        for (let i = 0; i < 5; i++) {
+            const p = document.createElement('div');
+            p.className = 'particle';
+            p.style.left = x + 'px';
+            p.style.top = y + 'px';
+            container.appendChild(p);
+            
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * 5 + 2;
+            const pvx = Math.cos(angle) * speed;
+            const pvy = Math.sin(angle) * speed;
+
+            let op = 1;
+            const anim = setInterval(() => {
+                p.style.left = parseFloat(p.style.left) + pvx + 'px';
+                p.style.top = parseFloat(p.style.top) + pvy + 'px';
+                op -= 0.05;
+                p.style.opacity = op;
+                if (op <= 0) {
+                    clearInterval(anim);
+                    p.remove();
+                }
+            }, 20);
+        }
+    }
+
+    container.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        kick(e);
+    });
+    container.addEventListener('mousedown', kick);
+
+    update();
+</script>
+
+</body>
+</html>
