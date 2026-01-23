@@ -3,114 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Football Mobile 2026</title>
+    <title>Pro Football Mobile 2026</title>
     <style>
+        :root {
+            --gold: #f1c40f;
+            --grass: #2ecc71;
+            --dark-grass: #27ae60;
+        }
         body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            background: #2ecc71;
-            font-family: 'Segoe UI', Roboto, sans-serif;
-            touch-action: none;
-            user-select: none;
+            margin: 0; padding: 0; overflow: hidden;
+            background: var(--grass);
+            font-family: 'Segoe UI', sans-serif;
+            touch-action: none; user-select: none;
         }
         #game-container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
-            background: radial-gradient(circle, #27ae60 20%, #2ecc71 80%);
+            position: relative; width: 100vw; height: 100vh;
+            background: radial-gradient(circle at center, var(--grass) 0%, var(--dark-grass) 100%);
         }
-        /* Мяч на чистом CSS */
+        /* Мяч с улучшенными тенями */
         #ball {
-            position: absolute;
-            width: 80px;
-            height: 80px;
+            position: absolute; width: 80px; height: 80px;
             background: white;
             background-image: 
-                radial-gradient(circle at 50% 50%, #333 22%, transparent 24%),
-                radial-gradient(circle at 0% 0%, #333 22%, transparent 24%),
-                radial-gradient(circle at 100% 0%, #333 22%, transparent 24%),
-                radial-gradient(circle at 0% 100%, #333 22%, transparent 24%),
-                radial-gradient(circle at 100% 100%, #333 22%, transparent 24%);
+                radial-gradient(circle at 50% 50%, #222 22%, transparent 24%),
+                radial-gradient(circle at 0% 0%, #222 22%, transparent 24%),
+                radial-gradient(circle at 100% 0%, #222 22%, transparent 24%),
+                radial-gradient(circle at 0% 100%, #222 22%, transparent 24%),
+                radial-gradient(circle at 100% 100%, #222 22%, transparent 24%);
             background-size: 44px 44px;
             border-radius: 50%;
-            box-shadow: inset -5px -5px 15px rgba(0,0,0,0.4), 0 10px 20px rgba(0,0,0,0.2);
-            z-index: 10;
-            will-change: transform;
+            box-shadow: inset -8px -8px 20px rgba(0,0,0,0.4), 0 15px 30px rgba(0,0,0,0.3);
+            z-index: 10; will-change: transform;
         }
-        /* Интерфейс */
+        /* След за мячом */
+        .trail {
+            position: absolute; width: 80px; height: 80px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 50%; pointer-events: none; z-index: 5;
+        }
+        /* UI */
         #ui {
-            position: absolute;
-            top: 50px;
-            width: 100%;
-            text-align: center;
-            color: white;
-            pointer-events: none;
-            z-index: 20;
+            position: absolute; top: 60px; width: 100%;
+            text-align: center; color: white; pointer-events: none; z-index: 20;
         }
-        .score-text { font-size: 40px; font-weight: 900; margin: 0; text-shadow: 2px 2px 10px rgba(0,0,0,0.3); }
-        .best-text { font-size: 18px; opacity: 0.8; }
+        .score-text { font-size: 50px; font-weight: 900; margin: 0; text-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        .best-text { font-size: 18px; background: rgba(0,0,0,0.2); padding: 5px 15px; border-radius: 20px; display: inline-block; }
 
-        /* Текст для Димы внизу */
-        #dima-footer {
-            position: absolute;
-            bottom: 15px;
-            width: 100%;
-            text-align: center;
-            color: rgba(255, 255, 255, 0.7);
-            font-size: 14px;
-            pointer-events: none;
-            z-index: 5;
+        /* Сообщение для Димы */
+        #dima-msg {
+            position: absolute; bottom: 20px; width: 100%;
+            text-align: center; color: white; font-size: 13px;
+            line-height: 1.5; opacity: 0.8; z-index: 20;
         }
+        .warning { color: #ffeb3b; font-weight: bold; display: block; margin-top: 5px; }
 
         /* Ачивки */
         #achievement {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.9);
-            color: #f1c40f;
-            padding: 12px 25px;
-            border-radius: 50px;
-            border: 2px solid #f1c40f;
-            text-align: center;
-            z-index: 100;
-            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            min-width: 200px;
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            background: #1a1a1a; color: var(--gold); padding: 12px 25px;
+            border-radius: 50px; border: 2px solid var(--gold); text-align: center;
+            z-index: 100; transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         .ach-hidden { top: -120px !important; opacity: 0; }
-        #ach-title { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 1px; }
-        #ach-name { font-size: 16px; font-weight: bold; margin-top: 2px; }
 
-        .particle {
-            position: absolute;
-            width: 8px;
-            height: 8px;
-            background: white;
-            border-radius: 50%;
-            pointer-events: none;
-        }
+        .particle { position: absolute; border-radius: 50%; pointer-events: none; background: white; }
     </style>
 </head>
 <body>
 
 <div id="game-container">
     <div id="achievement" class="ach-hidden">
-        <div id="ach-title">Достижение разблокировано!</div>
+        <div style="font-size: 10px; color: #888;">ДОСТИЖЕНИЕ</div>
         <div id="ach-name">Название</div>
     </div>
 
     <div id="ui">
         <p class="score-text" id="score">0</p>
-        <p class="best-text">Рекорд: <span id="best">0</span></p>
+        <div class="best-text">РЕКОРД: <span id="best">0</span></div>
     </div>
 
     <div id="ball"></div>
 
-    <!-- Твое сообщение -->
-    <div id="dima-footer">
-        Привет Дима игра иногда будет обновляться
+    <div id="dima-msg">
+        Привет Дима, игра иногда будет обновляться.
+        <span class="warning">При обновлении твой рекорд может сбрасываться!</span>
     </div>
 </div>
 
@@ -126,36 +102,21 @@
     bestElement.textContent = best;
 
     let x = window.innerWidth / 2 - 40;
-    let y = window.innerHeight / 2;
+    let y = window.innerHeight / 3;
     let vx = 0;
     let vy = 0;
-    const gravity = 0.5;
-    const friction = 0.99;
+    const gravity = 0.45;
+    const friction = 0.98;
     let rotation = 0;
 
-    let unlockedAch = JSON.parse(localStorage.getItem('fb-ach-list')) || [];
+    // Ачивки
+    let unlockedAch = JSON.parse(localStorage.getItem('fb-ach-2026')) || [];
     const achList = [
-        { id: 'first', name: 'Первый гол!', cond: () => score >= 1 },
-        { id: 'ten', name: 'Любитель (10)', cond: () => score >= 10 },
-        { id: 'pro', name: 'Мастер мяча (30)', cond: () => score >= 30 },
-        { id: 'legend', name: 'Легенда 2026 (50)', cond: () => score >= 50 }
+        { id: 'start', name: 'Первый удар!', cond: () => score === 1 },
+        { id: 'ten', name: 'Уличный игрок (10)', cond: () => score === 10 },
+        { id: 'pro', name: 'Профи 2026 (30)', cond: () => score === 30 },
+        { id: 'god', name: 'Марадона! (60)', cond: () => score === 60 }
     ];
-
-    function checkAch() {
-        achList.forEach(ach => {
-            if (!unlockedAch.includes(ach.id) && ach.cond()) {
-                unlockedAch.push(ach.id);
-                localStorage.setItem('fb-ach-list', JSON.stringify(unlockedAch));
-                showAch(ach.name);
-            }
-        });
-    }
-
-    function showAch(name) {
-        document.getElementById('ach-name').textContent = name;
-        achBox.classList.remove('ach-hidden');
-        setTimeout(() => achBox.classList.add('ach-hidden'), 3000);
-    }
 
     function update() {
         vy += gravity;
@@ -163,10 +124,15 @@
         y += vy;
         vx *= friction;
 
-        if (x + 80 > window.innerWidth) { x = window.innerWidth - 80; vx *= -0.7; }
-        if (x < 0) { x = 0; vx *= -0.7; }
+        // Создание эффекта следа при быстром движении
+        if (Math.abs(vy) > 10) createTrail(x, y);
+
+        // Коллизии со стенами
+        if (x + 80 > window.innerWidth) { x = window.innerWidth - 80; vx *= -0.8; }
+        if (x < 0) { x = 0; vx *= -0.8; }
         if (y < 0) { y = 0; vy *= -0.5; }
 
+        // Падение
         if (y > window.innerHeight) {
             if (score > best) {
                 best = score;
@@ -183,54 +149,79 @@
         requestAnimationFrame(update);
     }
 
+    function createTrail(tx, ty) {
+        const t = document.createElement('div');
+        t.className = 'trail';
+        t.style.transform = `translate(${tx}px, ${ty}px)`;
+        container.appendChild(t);
+        let op = 0.3;
+        const anim = setInterval(() => {
+            op -= 0.02;
+            t.style.opacity = op;
+            if (op <= 0) { clearInterval(anim); t.remove(); }
+        }, 30);
+    }
+
     function resetBall() {
         x = window.innerWidth / 2 - 40;
-        y = window.innerHeight / 3;
+        y = window.innerHeight / 4;
         vx = 0; vy = 0;
     }
 
     function kick(e) {
-        const cx = e.touches ? e.touches[0].clientX : e.clientX;
-        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        const cx = e.touches ? e.touches.clientX : e.clientX;
+        const cy = e.touches ? e.touches.clientY : e.clientY;
         const rect = ball.getBoundingClientRect();
         const bx = rect.left + 40;
         const by = rect.top + 40;
         const dist = Math.hypot(cx - bx, cy - by);
 
-        if (dist < 65) {
+        if (dist < 70) {
             score++;
             scoreElement.textContent = score;
-            vy = -16;
-            vx = (bx - cx) * 0.7;
+            vy = -15 - Math.min(score / 5, 5); // Мяч ускоряется с ростом счета
+            vx = (bx - cx) * 0.8;
             createParticles(cx, cy);
             checkAch();
         }
     }
 
-    function createParticles(x, y) {
-        for(let i=0; i<6; i++) {
+    function createParticles(px, py) {
+        for(let i=0; i<8; i++) {
             const p = document.createElement('div');
             p.className = 'particle';
-            p.style.left = x + 'px'; p.style.top = y + 'px';
+            const size = Math.random() * 8 + 4;
+            p.style.width = size + 'px'; p.style.height = size + 'px';
+            p.style.left = px + 'px'; p.style.top = py + 'px';
             container.appendChild(p);
-            const angle = Math.random() * Math.PI * 2;
-            const spd = Math.random() * 6 + 2;
-            let px = Math.cos(angle) * spd;
-            let py = Math.sin(angle) * spd;
+            const a = Math.random() * Math.PI * 2;
+            const s = Math.random() * 8 + 2;
+            let mx = Math.cos(a) * s; let my = Math.sin(a) * s;
             let op = 1;
-            const a = setInterval(() => {
-                p.style.left = parseFloat(p.style.left) + px + 'px';
-                p.style.top = parseFloat(p.style.top) + py + 'px';
-                op -= 0.05; p.style.opacity = op;
-                if(op <= 0) { clearInterval(a); p.remove(); }
+            const anim = setInterval(() => {
+                p.style.left = parseFloat(p.style.left) + mx + 'px';
+                p.style.top = parseFloat(p.style.top) + my + 'px';
+                op -= 0.04; p.style.opacity = op;
+                if(op <= 0) { clearInterval(anim); p.remove(); }
             }, 20);
         }
+    }
+
+    function checkAch() {
+        achList.forEach(ach => {
+            if (!unlockedAch.includes(ach.id) && ach.cond()) {
+                unlockedAch.push(ach.id);
+                localStorage.setItem('fb-ach-2026', JSON.stringify(unlockedAch));
+                document.getElementById('ach-name').textContent = ach.name;
+                achBox.classList.remove('ach-hidden');
+                setTimeout(() => achBox.classList.add('ach-hidden'), 3500);
+            }
+        });
     }
 
     container.addEventListener('touchstart', (e) => { e.preventDefault(); kick(e); }, {passive: false});
     container.addEventListener('mousedown', kick);
 
-    resetBall();
     update();
 </script>
 
