@@ -2,149 +2,54 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Football Online 2026</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест связи</title>
+</head>
+<body style="background: #222; color: white; text-align: center; padding-top: 50px;">
+
+    <h1>ПРОВЕРКА СВЯЗИ</h1>
+    <p id="status">Нажми на кнопку ниже</p>
+    
+    <button id="testBtn" style="padding: 20px; font-size: 20px; background: gold; border-radius: 10px;">
+        СОЗДАТЬ КОМНАТУ
+    </button>
+
     <script type="module">
+        // Импортируем только самое нужное
         import { initializeApp } from "https://www.gstatic.com";
-        import { getDatabase, ref, set, onValue, update, onDisconnect } from "https://www.gstatic.com";
+        import { getDatabase, ref, set } from "https://www.gstatic.com";
 
         const firebaseConfig = {
             apiKey: "AIzaSyAAvBTIamQLMW2FvHBiA0LDr_TkW7YajVU",
-            authDomain: "football-3b1a1.firebaseapp.com",
             databaseURL: "https://football-3b1a1-default-rtdb.firebaseio.com",
             projectId: "football-3b1a1",
             appId: "1:13715190575:web:922b93c0039ca4941f67da"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
+        try {
+            const app = initializeApp(firebaseConfig);
+            const db = getDatabase(app);
+            const btn = document.getElementById('testBtn');
+            const status = document.getElementById('status');
 
-        let myId = "id" + Math.floor(Math.random() * 1000);
-        let myName = "", roomID = "", isAdmin = false, isPaused = false;
-        let targetScore = 10;
-
-        window.joinRoom = function(asAdmin) {
-            myName = document.getElementById('nickInput').value || "Игрок";
-            roomID = document.getElementById('roomInput').value || "777";
-            targetScore = parseInt(document.getElementById('targetInput').value) || 10;
-            isAdmin = asAdmin;
-
-            const roomRef = ref(db, 'rooms/' + roomID);
-            const myRef = ref(db, 'rooms/' + roomID + '/players/' + myId);
-
-            // Пытаемся записать данные
-            update(roomRef, { 
-                paused: false,
-                target: targetScore
-            }).then(() => {
-                return set(myRef, { name: myName, y: 30, score: 0 });
-            }).then(() => {
-                // Если запись успешна, переключаем экран
-                document.getElementById('menu').style.display = 'none';
-                document.getElementById('game').style.visibility = 'visible';
-                if (isAdmin) document.getElementById('admin-panel').style.display = 'block';
+            btn.onclick = function() {
+                status.innerText = "Пытаюсь отправить данные...";
                 
-                startUpdates();
-            }).catch((err) => {
-                alert("ОШИБКА FIREBASE: " + err.message);
-                console.error(err);
-            });
-        };
-
-        function startUpdates() {
-            onValue(ref(db, 'rooms/' + roomID), (snap) => {
-                const data = snap.val();
-                if (!data) return;
-                
-                isPaused = data.paused;
-                document.getElementById('pause-screen').style.display = isPaused ? 'flex' : 'none';
-                
-                // Лидерборд
-                const list = document.getElementById('leader-list');
-                list.innerHTML = "";
-                const players = data.players || {};
-                
-                // Удаляем старые чужие мячи
-                document.querySelectorAll('.remote').forEach(el => el.remove());
-
-                Object.keys(players).forEach(id => {
-                    if (id !== myId) {
-                        const rb = document.createElement('div');
-                        rb.className = 'ball remote';
-                        rb.style.top = players[id].y + "%";
-                        rb.innerHTML = `<div class="tag">${players[id].name}</div>`;
-                        document.getElementById('game').appendChild(rb);
-                    }
-                    list.innerHTML += `<div>${players[id].name}: ${players[id].score}</div>`;
+                // Пробуем записать тестовое значение
+                set(ref(db, 'test_connect'), {
+                    time: new Date().getTime(),
+                    msg: "Работает!"
+                }).then(() => {
+                    alert("УРА! Связь с Firebase есть!");
+                    status.innerText = "ВСЁ РАБОТАЕТ! Можешь ставить основной код.";
+                }).catch((error) => {
+                    alert("ОШИБКА БАЗЫ: " + error.message);
+                    status.innerText = "Ошибка: " + error.message;
                 });
-            });
-
-            // Физика
-            let vy = 0, myY = 30, myScore = 0;
-            setInterval(() => {
-                if (isPaused) return;
-                vy += 0.5; myY += vy;
-                if (myY > 90) { myY = 30; vy = 0; myScore = 0; sync(); }
-                if (myY < 0) { myY = 0; vy = 0; }
-                document.getElementById('my-ball').style.top = myY + "%";
-                
-                window.kick = () => {
-                    if (isPaused) return;
-                    vy = -12; myScore++;
-                    sync();
-                };
-
-                function sync() {
-                    update(ref(db, 'rooms/' + roomID + '/players/' + myId), { y: myY, score: myScore });
-                }
-            }, 30);
+            };
+        } catch (e) {
+            alert("Критическая ошибка скрипта: " + e.message);
         }
-
-        window.togglePause = () => {
-            update(ref(db, 'rooms/' + roomID), { paused: !isPaused });
-        };
-
-        window.addEventListener('pointerdown', (e) => {
-            if (e.target.tagName !== 'BUTTON' && window.kick) window.kick();
-        });
     </script>
-    <style>
-        body { margin: 0; background: #1a1a1a; font-family: sans-serif; color: white; overflow: hidden; touch-action: none; }
-        #menu { position: fixed; inset: 0; z-index: 100; background: #1e272e; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
-        #game { position: relative; width: 100vw; height: 100vh; visibility: hidden; background: #2ecc71; }
-        .ball { position: absolute; left: 50%; width: 60px; height: 60px; background: white; border-radius: 50%; transform: translateX(-50%); border: 3px solid #333; }
-        #my-ball { border-color: gold; z-index: 10; box-shadow: 0 0 15px gold; }
-        .tag { position: absolute; top: -20px; width: 100px; left: -20px; text-align: center; font-size: 10px; color: white; text-shadow: 1px 1px 1px black; }
-        #leaderboard { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 8px; font-size: 12px; }
-        #admin-panel { position: absolute; bottom: 20px; left: 20px; display: none; }
-        #pause-screen { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; font-size: 40px; color: gold; z-index: 1000; }
-        input { padding: 10px; border-radius: 5px; border: none; text-align: center; }
-        button { padding: 10px 20px; border-radius: 20px; border: none; cursor: pointer; font-weight: bold; background: gold; }
-    </style>
-</head>
-<body>
-
-<div id="menu">
-    <h1>FOOTBALL ONLINE</h1>
-    <input type="text" id="nickInput" placeholder="Ник">
-    <input type="text" id="roomInput" placeholder="Комната (777)">
-    <input type="number" id="targetInput" value="10" style="width: 60px;">
-    <button onclick="joinRoom(true)">СОЗДАТЬ</button>
-    <button style="background: #3498db; color: white;" onclick="joinRoom(false)">ВОЙТИ</button>
-</div>
-
-<div id="pause-screen">ПАУЗА</div>
-
-<div id="game">
-    <div id="leaderboard">
-        <b>ЛИДЕРЫ:</b>
-        <div id="leader-list"></div>
-    </div>
-    <div id="admin-panel">
-        <button onclick="togglePause()">ПАУЗА / СТАРТ</button>
-    </div>
-    <div id="my-ball" class="ball"><div class="tag">ВЫ</div></div>
-</div>
-
 </body>
 </html>
