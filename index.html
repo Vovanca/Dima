@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Football 2026: Battle</title>
+    <title>Football Duel 2026</title>
     <style>
         :root { --masha: #ff7675; --dima: #74b9ff; --gold: #fdcb6e; }
         body { margin: 0; padding: 0; overflow: hidden; background: #1e272e; font-family: 'Segoe UI', sans-serif; touch-action: none; user-select: none; }
@@ -20,11 +20,16 @@
         }
         #btn-single { background: var(--dima); color: white; }
 
-        /* Выбор баллов */
-        .score-selector { margin-bottom: 20px; text-align: center; color: white; }
-        select { padding: 10px; border-radius: 10px; font-size: 16px; background: #34495e; color: white; border: 2px solid var(--gold); outline: none; }
+        /* Поле ввода баллов */
+        .score-input-container { margin-bottom: 25px; text-align: center; color: white; }
+        .score-input-container label { display: block; margin-bottom: 10px; font-size: 14px; opacity: 0.8; }
+        #targetScore { 
+            padding: 12px; border-radius: 12px; font-size: 20px; width: 100px; 
+            background: #2d3436; color: var(--gold); border: 2px solid var(--gold); 
+            text-align: center; outline: none; font-weight: bold;
+        }
 
-        /* Поле */
+        /* Поле игры */
         #game-container { position: relative; width: 100vw; height: 100vh; display: flex; visibility: hidden; }
         .zone { position: relative; flex: 1; height: 100%; }
         #zone-masha { background: linear-gradient(180deg, #2d3436, var(--masha)); display: none; border-right: 2px solid rgba(0,0,0,0.3); }
@@ -38,58 +43,58 @@
 
         .info { position: absolute; top: 10%; width: 100%; text-align: center; color: white; pointer-events: none; z-index: 20; }
         .score { font-size: 60px; font-weight: 900; margin: 0; }
-        .target-info { font-size: 14px; opacity: 0.7; }
+        .target-info { font-size: 14px; opacity: 0.7; margin-top: 5px; }
 
         /* Экран победы */
         #win-screen {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+            position: fixed; inset: 0; background: rgba(0,0,0,0.95);
             display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 2000; color: white;
         }
+        
+        #dima-footer { position: absolute; bottom: 15px; width: 100%; text-align: center; color: rgba(255,255,255,0.4); font-size: 11px; }
     </style>
 </head>
 <body>
 
 <div id="menu">
-    <h1 style="color: white; margin-bottom: 20px; letter-spacing: 3px;">FOOTBALL 2026</h1>
+    <h1 style="color: white; margin-bottom: 30px; letter-spacing: 3px;">FOOTBALL 2026</h1>
     
-    <div class="score-selector">
-        <label>Играем до: </label>
-        <select id="targetScore">
-            <option value="10">10 баллов</option>
-            <option value="25">25 баллов</option>
-            <option value="50">50 баллов</option>
-            <option value="100">100 баллов</option>
-            <option value="9999">Без лимита</option>
-        </select>
+    <div class="score-input-container">
+        <label>ДО СКОЛЬКИ БАЛЛОВ ИГРАЕМ?</label>
+        <input type="number" id="targetScore" value="10" min="1" max="999">
     </div>
 
     <button class="menu-btn" id="btn-single" onpointerdown="startMode(1)">ИГРАТЬ (ДИМА)</button>
     <button class="menu-btn" onpointerdown="startMode(2)">МАША VS ДИМА</button>
+    
+    <div style="color: #666; font-size: 12px; margin-top: 20px;">Привет Дима, введи любое число выше</div>
 </div>
 
 <div id="win-screen">
-    <h1 id="winner-name" style="font-size: 40px; color: var(--gold);">ПОБЕДА!</h1>
-    <button class="menu-btn" onpointerdown="location.reload()">В МЕНЮ</button>
+    <h1 id="winner-name" style="font-size: 35px; color: var(--gold); text-align: center; padding: 20px;"></h1>
+    <button class="menu-btn" onpointerdown="location.reload()">ИГРАТЬ СНОВА</button>
 </div>
 
 <div id="game-container">
     <div id="zone-masha" class="zone">
         <div class="info">
-            <div style="font-size:20px">МАША</div>
+            <div style="font-size:18px">МАША</div>
             <div id="score-masha" class="score">0</div>
-            <div class="target-info">Цель: <span class="goal-val">10</span></div>
+            <div class="target-info">ЦЕЛЬ: <span class="goal-val">10</span></div>
         </div>
         <div id="ball-masha" class="ball"></div>
     </div>
     <div id="zone-dima" class="zone">
         <div class="info">
-            <div style="font-size:20px">ДИМА</div>
+            <div style="font-size:18px">ДИМА</div>
             <div id="score-dima" class="score">0</div>
-            <div class="target-info">Цель: <span class="goal-val">10</span></div>
+            <div class="target-info">ЦЕЛЬ: <span class="goal-val">10</span></div>
         </div>
         <div id="ball-dima" class="ball"></div>
     </div>
 </div>
+
+<div id="dima-footer">Привет Дима, игра иногда будет обновляться. Рекорд может сброситься.</div>
 
 <script>
     const config = { grav: 0.45, fric: 0.98, kick: -15 };
@@ -106,12 +111,15 @@
             this.score = 0; this.x = 0; this.y = 0; this.vx = 0; this.vy = 0; this.rot = 0;
             this.active = false;
         }
-        reset() {
+        reset(fullReset = false) {
             const r = this.zone.getBoundingClientRect();
             this.x = r.width / 2 - 37;
             this.y = r.height / 3;
-            this.vx = 0; this.vy = 0; this.score = 0;
-            this.scoreEl.textContent = 0;
+            this.vx = 0; this.vy = 0;
+            if(fullReset) {
+                this.score = 0;
+                this.scoreEl.textContent = 0;
+            }
         }
         update() {
             if (!this.active || gameEnded) return;
@@ -123,7 +131,13 @@
             if (this.x < 0) { this.x = 0; this.vx *= -0.8; }
             if (this.x + 75 > r.width) { this.x = r.width - 75; this.vx *= -0.8; }
             if (this.y < 0) { this.y = 0; this.vy *= -0.5; }
-            if (this.y > r.height) { this.score = 0; this.scoreEl.textContent = 0; this.y = r.height / 3; this.vy = 0; }
+            
+            // Если мяч упал - обнуляем счет
+            if (this.y > r.height) { 
+                this.score = 0; 
+                this.scoreEl.textContent = 0; 
+                this.reset(); 
+            }
 
             this.rot += this.vx * 2;
             this.ball.style.transform = `translate(${this.x}px, ${this.y}px) rotate(${this.rot}deg)`;
@@ -146,27 +160,27 @@
     const dima = new Player('zone-dima', 'ball-dima', 'score-dima', 'ДИМА');
 
     function startMode(mode) {
-        target = parseInt(document.getElementById('targetScore').value);
-        document.querySelectorAll('.goal-val').forEach(el => el.textContent = target === 9999 ? "∞" : target);
+        // Берем число из поля ввода
+        let val = parseInt(document.getElementById('targetScore').value);
+        target = (val > 0) ? val : 10;
         
+        document.querySelectorAll('.goal-val').forEach(el => el.textContent = target);
         document.getElementById('menu').style.display = 'none';
         document.getElementById('game-container').style.visibility = 'visible';
-        isTwo = (mode === 2);
         
+        isTwo = (mode === 2);
         if (isTwo) {
             document.getElementById('zone-masha').style.display = 'block';
-            masha.active = true; masha.reset();
+            masha.active = true; masha.reset(true);
         }
-        dima.active = true; dima.reset();
+        dima.active = true; dima.reset(true);
         gameLoop();
     }
 
     function win(name) {
         gameEnded = true;
-        const screen = document.getElementById('win-screen');
-        const text = document.getElementById('winner-name');
-        text.textContent = "ПОБЕДИЛ(А) " + name + "!";
-        screen.style.display = 'flex';
+        document.getElementById('win-screen').style.display = 'flex';
+        document.getElementById('winner-name').textContent = "ПОБЕДА ЗА ИГРОКОМ: " + name;
     }
 
     function gameLoop() {
