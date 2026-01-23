@@ -3,156 +3,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Football Duo 2026</title>
+    <title>Football Battle 2026</title>
     <style>
         :root { --gold: #f1c40f; --grass: #2ecc71; --masha: #ff6b6b; --dima: #4dabf7; }
-        body { margin: 0; padding: 0; overflow: hidden; background: #222; font-family: 'Segoe UI', sans-serif; touch-action: none; user-select: none; }
+        body { margin: 0; padding: 0; overflow: hidden; background: #1a1a1a; font-family: 'Segoe UI', sans-serif; touch-action: none; user-select: none; }
         
-        #game-container { position: relative; width: 100vw; height: 100vh; display: flex; flex-direction: column; }
+        #game-container { position: relative; width: 100vw; height: 100vh; display: flex; flex-direction: row; }
         
-        /* Зоны игроков */
-        .player-zone { position: relative; flex: 1; width: 100%; overflow: hidden; transition: 0.5s; border: 2px solid rgba(0,0,0,0.2); }
-        #zone-masha { background: linear-gradient(to bottom, #2d3436, var(--masha)); }
-        #zone-dima { background: linear-gradient(to top, #2d3436, var(--dima)); }
+        /* Зоны игроков (Лево/Право) */
+        .player-zone { position: relative; flex: 1; height: 100%; overflow: hidden; border-right: 2px solid rgba(0,0,0,0.3); display: none; }
+        #zone-masha { background: linear-gradient(135deg, #2d3436, var(--masha)); }
+        #zone-dima { background: linear-gradient(225deg, #2d3436, var(--dima)); display: block; } /* Дима виден всегда */
 
-        /* Мячи */
         .ball { 
             position: absolute; width: 70px; height: 70px; background: white;
             background-image: radial-gradient(circle at 50% 50%, #222 22%, transparent 24%), radial-gradient(circle at 0% 0%, #222 22%, transparent 24%);
-            background-size: 35px 35px; border-radius: 50%; box-shadow: 0 10px 20px rgba(0,0,0,0.3); z-index: 10; 
+            background-size: 35px 35px; border-radius: 50%; box-shadow: 0 8px 15px rgba(0,0,0,0.4); z-index: 10; 
         }
 
-        /* Тексты */
-        .info { position: absolute; width: 100%; text-align: center; color: white; pointer-events: none; z-index: 20; }
-        .score { font-size: 40px; font-weight: 900; margin: 5px 0; }
-        .name { font-size: 18px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.8; }
+        .info { position: absolute; top: 15%; width: 100%; text-align: center; color: white; pointer-events: none; z-index: 20; }
+        .score { font-size: 50px; font-weight: 900; margin: 0; text-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .name { font-size: 18px; text-transform: uppercase; font-weight: bold; opacity: 0.9; }
 
-        /* Кнопка режима */
-        #mode-btn {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            z-index: 100; padding: 10px 20px; background: white; border-radius: 30px;
-            font-weight: bold; cursor: pointer; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        /* Стартовое меню */
+        #menu {
+            position: absolute; inset: 0; background: rgba(0,0,0,0.85);
+            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000;
         }
+        .menu-btn {
+            padding: 20px 40px; margin: 10px; font-size: 20px; font-weight: bold;
+            border: none; border-radius: 50px; cursor: pointer; transition: 0.3s;
+        }
+        #btn-1 { background: var(--dima); color: white; }
+        #btn-2 { background: var(--gold); color: black; }
+
+        /* Ачивки */
+        #ach-pop {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            background: #1a1a1a; color: var(--gold); padding: 10px 25px;
+            border-radius: 50px; border: 2px solid var(--gold); z-index: 500;
+            display: none; text-align: center; animation: slideIn 0.5s;
+        }
+        @keyframes slideIn { from { top: -100px; } to { top: 20px; } }
 
         #dima-footer {
             position: absolute; bottom: 10px; width: 100%; text-align: center;
-            color: white; font-size: 11px; opacity: 0.6; z-index: 100; pointer-events: none;
+            color: rgba(255,255,255,0.5); font-size: 11px; z-index: 100; pointer-events: none;
         }
-
-        .ach { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: gold; color: black; padding: 5px 15px; border-radius: 20px; font-weight: bold; display: none; z-index: 200; }
     </style>
 </head>
 <body>
 
-<button id="mode-btn" onclick="toggleMode()">РЕЖИМ: 1 ИГРОК</button>
+<div id="menu">
+    <h1 style="color: white; margin-bottom: 30px;">FOOTBALL 2026</h1>
+    <button class="menu-btn" id="btn-1" onclick="start(1)">1 ИГРОК (ДИМА)</button>
+    <button class="menu-btn" id="btn-2" onclick="start(2)">2 ИГРОКА (МАША И ДИМА)</button>
+    <p style="color: grey; font-size: 12px; margin-top: 20px;">Привет Дима, игра иногда будет обновляться</p>
+</div>
+
+<div id="ach-pop">
+    <div style="font-size: 10px; opacity: 0.7;">НОВОЕ ДОСТИЖЕНИЕ</div>
+    <div id="ach-text"></div>
+</div>
 
 <div id="game-container">
-    <!-- ЗОНА МАШИ -->
     <div id="zone-masha" class="player-zone">
-        <div class="info" style="top: 20px;">
-            <div class="name">Маша</div>
+        <div class="info">
+            <div class="name">МАША</div>
             <div id="score-masha" class="score">0</div>
         </div>
         <div id="ball-masha" class="ball"></div>
     </div>
 
-    <!-- ЗОНА ДИМЫ -->
     <div id="zone-dima" class="player-zone">
-        <div id="ball-dima" class="ball"></div>
-        <div class="info" style="bottom: 40px;">
+        <div class="info">
+            <div class="name" id="dima-label">ДИМА</div>
             <div id="score-dima" class="score">0</div>
-            <div class="name">Дима</div>
         </div>
+        <div id="ball-dima" class="ball"></div>
     </div>
 </div>
 
 <div id="dima-footer">
-    Привет Дима, игра обновлена (2026). <br> 
-    В режиме 2-х игроков рекорды не сохраняются. При обновлении рекорд может сброситься.
+    Привет Дима, при обновлении в 2026 году твой рекорд может сбрасываться.
 </div>
 
 <script>
-    const config = { gravity: 0.4, friction: 0.98, kickStr: -14 };
-    let isTwoPlayer = false;
+    const config = { grav: 0.45, fric: 0.98, kick: -15 };
+    let isTwo = false;
+    let unlocked = JSON.parse(localStorage.getItem('fb-ach-list')) || [];
 
     class Player {
-        constructor(id, zoneId, ballId, scoreId) {
-            this.id = id;
+        constructor(zoneId, ballId, scoreId) {
             this.zone = document.getElementById(zoneId);
             this.ball = document.getElementById(ballId);
             this.scoreEl = document.getElementById(scoreId);
-            this.score = 0;
-            this.x = 100; this.y = 100; this.vx = 0; this.vy = 0;
-            this.rot = 0;
-            this.active = true;
+            this.score = 0; this.x = 0; this.y = 0; this.vx = 0; this.vy = 0; this.rot = 0;
+            this.active = false;
         }
-
         reset() {
-            const rect = this.zone.getBoundingClientRect();
-            this.x = rect.width / 2 - 35;
-            this.y = rect.height / 3;
-            this.vx = 0; this.vy = 0;
-            this.score = 0;
+            const r = this.zone.getBoundingClientRect();
+            this.x = r.width / 2 - 35; this.y = r.height / 3;
+            this.vx = 0; this.vy = 0; this.score = 0;
             this.scoreEl.textContent = 0;
         }
-
         update() {
             if (!this.active) return;
-            this.vy += config.gravity;
-            this.x += this.vx;
-            this.y += this.vy;
-            this.vx *= config.friction;
-
-            const rect = this.zone.getBoundingClientRect();
-
-            // Стены
-            if (this.x < 0) { this.x = 0; this.vx *= -0.8; }
-            if (this.x + 70 > rect.width) { this.x = rect.width - 70; this.vx *= -0.8; }
-            if (this.y < 0) { this.y = 0; this.vy *= -0.5; }
-
-            // Падение
-            if (this.y > rect.height) {
-                this.reset();
-            }
-
+            this.vy += config.grav; this.x += this.vx; this.y += this.vy; this.vx *= config.fric;
+            const r = this.zone.getBoundingClientRect();
+            if (this.x < 0) { this.x = 0; this.vx *= -0.7; }
+            if (this.x + 70 > r.width) { this.x = r.width - 70; this.vx *= -0.7; }
+            if (this.y < 0) { this.y = 0; this.vy *= -0.4; }
+            if (this.y > r.height) this.reset();
             this.rot += this.vx * 2;
             this.ball.style.transform = `translate(${this.x}px, ${this.y}px) rotate(${this.rot}deg)`;
         }
-
         kick(cx, cy) {
             const b = this.ball.getBoundingClientRect();
-            const bx = b.left + 35;
-            const by = b.top + 35;
-            const dist = Math.hypot(cx - bx, cy - by);
-
-            if (dist < 60) {
-                this.score++;
-                this.scoreEl.textContent = this.score;
-                this.vy = config.kickStr;
-                this.vx = (bx - cx) * 0.6;
+            const bx = b.left + 35; const by = b.top + 35;
+            if (Math.hypot(cx - bx, cy - by) < 65) {
+                this.score++; this.scoreEl.textContent = this.score;
+                this.vy = config.kick; this.vx = (bx - cx) * 0.6;
+                checkAch(this.score);
             }
         }
     }
 
-    const masha = new Player('masha', 'zone-masha', 'ball-masha', 'score-masha');
-    const dima = new Player('dima', 'zone-dima', 'ball-dima', 'score-dima');
+    const masha = new Player('zone-masha', 'ball-masha', 'score-masha');
+    const dima = new Player('zone-dima', 'ball-dima', 'score-dima');
 
-    function toggleMode() {
-        isTwoPlayer = !isTwoPlayer;
-        document.getElementById('mode-btn').textContent = isTwoPlayer ? "РЕЖИМ: 2 ИГРОКА" : "РЕЖИМ: 1 ИГРОК";
-        document.getElementById('zone-masha').style.display = isTwoPlayer ? "block" : "none";
-        masha.active = isTwoPlayer;
-        masha.reset();
-        dima.reset();
+    function start(mode) {
+        document.getElementById('menu').style.display = 'none';
+        isTwo = (mode === 2);
+        if (isTwo) {
+            document.getElementById('zone-masha').style.display = 'block';
+            masha.active = true; masha.reset();
+        }
+        dima.active = true; dima.reset();
+        loop();
     }
 
-    function handleInput(e) {
+    function checkAch(s) {
+        const achs = [
+            {id:'1', n:'Первый шаг!', v:1},
+            {id:'10', n:'Уже профи (10)', v:10},
+            {id:'50', n:'Легенда Дима/Маша (50)', v:50}
+        ];
+        achs.forEach(a => {
+            if (s >= a.v && !unlocked.includes(a.id)) {
+                unlocked.push(a.id);
+                localStorage.setItem('fb-ach-list', JSON.stringify(unlocked));
+                const pop = document.getElementById('ach-pop');
+                document.getElementById('ach-text').textContent = a.n;
+                pop.style.display = 'block';
+                setTimeout(() => pop.style.display = 'none', 3000);
+            }
+        });
+    }
+
+    function handle(e) {
         const cx = e.touches ? e.touches[0].clientX : e.clientX;
         const cy = e.touches ? e.touches[0].clientY : e.clientY;
-        
-        const mid = window.innerHeight / 2;
-        if (isTwoPlayer) {
-            if (cy < mid) masha.kick(cx, cy);
+        if (isTwo) {
+            if (cx < window.innerWidth / 2) masha.kick(cx, cy);
             else dima.kick(cx, cy);
         } else {
             dima.kick(cx, cy);
@@ -160,20 +173,12 @@
     }
 
     function loop() {
-        masha.update();
-        dima.update();
+        masha.update(); dima.update();
         requestAnimationFrame(loop);
     }
 
-    window.addEventListener('touchstart', (e) => { e.preventDefault(); handleInput(e); }, {passive:false});
-    window.addEventListener('mousedown', handleInput);
-
-    // Начальное состояние
-    document.getElementById('zone-masha').style.display = "none";
-    masha.active = false;
-    
-    dima.reset();
-    loop();
+    window.addEventListener('touchstart', (e) => { e.preventDefault(); handle(e); }, {passive:false});
+    window.addEventListener('mousedown', handle);
 </script>
 </body>
 </html>
