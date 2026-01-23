@@ -14,12 +14,15 @@
             display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000;
         }
         .menu-btn {
-            padding: 20px 40px; margin: 15px; font-size: 20px; font-weight: bold;
+            padding: 15px 30px; margin: 10px; font-size: 18px; font-weight: bold;
             border: none; border-radius: 50px; cursor: pointer; width: 280px;
             background: var(--gold); color: black; box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-            display: block; /* Чтобы кнопка точно была видна */
         }
         #btn-single { background: var(--dima); color: white; }
+
+        /* Выбор баллов */
+        .score-selector { margin-bottom: 20px; text-align: center; color: white; }
+        select { padding: 10px; border-radius: 10px; font-size: 16px; background: #34495e; color: white; border: 2px solid var(--gold); outline: none; }
 
         /* Поле */
         #game-container { position: relative; width: 100vw; height: 100vh; display: flex; visibility: hidden; }
@@ -35,55 +38,64 @@
 
         .info { position: absolute; top: 10%; width: 100%; text-align: center; color: white; pointer-events: none; z-index: 20; }
         .score { font-size: 60px; font-weight: 900; margin: 0; }
-        
-        #ach-toast {
-            position: fixed; top: -100px; left: 50%; transform: translateX(-50%);
-            background: #2d3436; color: var(--gold); padding: 15px 30px;
-            border-radius: 50px; border: 2px solid var(--gold); z-index: 2000;
-            transition: 0.5s; text-align: center;
-        }
-        #ach-toast.show { top: 30px; }
+        .target-info { font-size: 14px; opacity: 0.7; }
 
-        #footer-text {
-            position: absolute; bottom: 15px; width: 100%; text-align: center;
-            color: rgba(255,255,255,0.6); font-size: 12px; pointer-events: none; z-index: 50;
+        /* Экран победы */
+        #win-screen {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.9);
+            display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 2000; color: white;
         }
     </style>
 </head>
 <body>
 
 <div id="menu">
-    <h1 style="color: white; margin-bottom: 40px; letter-spacing: 3px;">FOOTBALL 2026</h1>
-    <!-- Мы добавили onpointerdown вместо onclick для мгновенного срабатывания -->
+    <h1 style="color: white; margin-bottom: 20px; letter-spacing: 3px;">FOOTBALL 2026</h1>
+    
+    <div class="score-selector">
+        <label>Играем до: </label>
+        <select id="targetScore">
+            <option value="10">10 баллов</option>
+            <option value="25">25 баллов</option>
+            <option value="50">50 баллов</option>
+            <option value="100">100 баллов</option>
+            <option value="9999">Без лимита</option>
+        </select>
+    </div>
+
     <button class="menu-btn" id="btn-single" onpointerdown="startMode(1)">ИГРАТЬ (ДИМА)</button>
     <button class="menu-btn" onpointerdown="startMode(2)">МАША VS ДИМА</button>
-    <div style="color: #888; font-size: 14px; margin-top: 30px; text-align: center;">
-        Привет Дима, игра иногда будет обновляться
-    </div>
 </div>
 
-<div id="ach-toast">
-    <div id="ach-name" style="font-size: 18px; font-weight: bold;"></div>
+<div id="win-screen">
+    <h1 id="winner-name" style="font-size: 40px; color: var(--gold);">ПОБЕДА!</h1>
+    <button class="menu-btn" onpointerdown="location.reload()">В МЕНЮ</button>
 </div>
 
 <div id="game-container">
     <div id="zone-masha" class="zone">
-        <div class="info"><div style="font-size:20px">МАША</div><div id="score-masha" class="score">0</div></div>
+        <div class="info">
+            <div style="font-size:20px">МАША</div>
+            <div id="score-masha" class="score">0</div>
+            <div class="target-info">Цель: <span class="goal-val">10</span></div>
+        </div>
         <div id="ball-masha" class="ball"></div>
     </div>
     <div id="zone-dima" class="zone">
-        <div class="info"><div style="font-size:20px">ДИМА</div><div id="score-dima" class="score">0</div></div>
+        <div class="info">
+            <div style="font-size:20px">ДИМА</div>
+            <div id="score-dima" class="score">0</div>
+            <div class="target-info">Цель: <span class="goal-val">10</span></div>
+        </div>
         <div id="ball-dima" class="ball"></div>
     </div>
-</div>
-
-<div id="footer-text">
-    Привет Дима, при обновлениях твой рекорд может сбрасываться.
 </div>
 
 <script>
     const config = { grav: 0.45, fric: 0.98, kick: -15 };
     let isTwo = false;
+    let target = 10;
+    let gameEnded = false;
 
     class Player {
         constructor(zoneId, ballId, scoreId, name) {
@@ -102,7 +114,7 @@
             this.scoreEl.textContent = 0;
         }
         update() {
-            if (!this.active) return;
+            if (!this.active || gameEnded) return;
             this.vy += config.grav;
             this.x += this.vx; this.y += this.vy;
             this.vx *= config.fric;
@@ -111,30 +123,36 @@
             if (this.x < 0) { this.x = 0; this.vx *= -0.8; }
             if (this.x + 75 > r.width) { this.x = r.width - 75; this.vx *= -0.8; }
             if (this.y < 0) { this.y = 0; this.vy *= -0.5; }
-            if (this.y > r.height) this.reset();
+            if (this.y > r.height) { this.score = 0; this.scoreEl.textContent = 0; this.y = r.height / 3; this.vy = 0; }
 
             this.rot += this.vx * 2;
             this.ball.style.transform = `translate(${this.x}px, ${this.y}px) rotate(${this.rot}deg)`;
         }
         hit(cx, cy) {
+            if (gameEnded) return;
             const b = this.ball.getBoundingClientRect();
             const bx = b.left + 37; const by = b.top + 37;
-            if (Math.hypot(cx - bx, cy - by) < 70) {
+            if (Math.hypot(cx - bx, cy - by) < 75) {
                 this.score++;
                 this.scoreEl.textContent = this.score;
                 this.vy = config.kick;
                 this.vx = (bx - cx) * 0.7;
+                if (this.score >= target) win(this.name);
             }
         }
     }
 
-    const masha = new Player('zone-masha', 'ball-masha', 'score-masha', 'Маша');
-    const dima = new Player('zone-dima', 'ball-dima', 'score-dima', 'Дима');
+    const masha = new Player('zone-masha', 'ball-masha', 'score-masha', 'МАША');
+    const dima = new Player('zone-dima', 'ball-dima', 'score-dima', 'ДИМА');
 
     function startMode(mode) {
+        target = parseInt(document.getElementById('targetScore').value);
+        document.querySelectorAll('.goal-val').forEach(el => el.textContent = target === 9999 ? "∞" : target);
+        
         document.getElementById('menu').style.display = 'none';
         document.getElementById('game-container').style.visibility = 'visible';
         isTwo = (mode === 2);
+        
         if (isTwo) {
             document.getElementById('zone-masha').style.display = 'block';
             masha.active = true; masha.reset();
@@ -143,16 +161,22 @@
         gameLoop();
     }
 
+    function win(name) {
+        gameEnded = true;
+        const screen = document.getElementById('win-screen');
+        const text = document.getElementById('winner-name');
+        text.textContent = "ПОБЕДИЛ(А) " + name + "!";
+        screen.style.display = 'flex';
+    }
+
     function gameLoop() {
         masha.update();
         dima.update();
         requestAnimationFrame(gameLoop);
     }
 
-    // Слушатель касаний для игры
     window.addEventListener('pointerdown', (e) => {
-        const cx = e.clientX;
-        const cy = e.clientY;
+        const cx = e.clientX; const cy = e.clientY;
         if (isTwo) {
             if (cx < window.innerWidth / 2) masha.hit(cx, cy);
             else dima.hit(cx, cy);
