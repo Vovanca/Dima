@@ -3,52 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Football Battle 2026: Дима vs Маша</title>
+    <title>Football 2026: Battle</title>
     <style>
         :root { --masha: #ff7675; --dima: #74b9ff; --gold: #fdcb6e; }
-        body { margin: 0; padding: 0; overflow: hidden; background: #2d3436; font-family: 'Segoe UI', sans-serif; touch-action: none; user-select: none; }
+        body { margin: 0; padding: 0; overflow: hidden; background: #1e272e; font-family: 'Segoe UI', sans-serif; touch-action: none; user-select: none; }
         
-        /* Главный экран выбора */
+        /* Меню */
         #menu {
-            position: absolute; inset: 0; background: #1e272e;
+            position: fixed; inset: 0; background: #1e272e;
             display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000;
         }
         .menu-btn {
-            padding: 20px 40px; margin: 15px; font-size: 22px; font-weight: bold;
-            border: none; border-radius: 50px; cursor: pointer; transition: 0.3s; width: 280px;
+            padding: 20px 40px; margin: 15px; font-size: 20px; font-weight: bold;
+            border: none; border-radius: 50px; cursor: pointer; width: 280px;
+            background: var(--gold); color: black; box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            display: block; /* Чтобы кнопка точно была видна */
         }
         #btn-single { background: var(--dima); color: white; }
-        #btn-duo { background: var(--gold); color: black; }
 
-        /* Игровое поле */
-        #game-container { position: relative; width: 100vw; height: 100vh; display: flex; opacity: 0; transition: opacity 0.5s; }
-        .zone { position: relative; flex: 1; height: 100%; border-right: 2px solid rgba(0,0,0,0.2); }
-        #zone-masha { background: linear-gradient(180deg, #2d3436, var(--masha)); display: none; }
+        /* Поле */
+        #game-container { position: relative; width: 100vw; height: 100vh; display: flex; visibility: hidden; }
+        .zone { position: relative; flex: 1; height: 100%; }
+        #zone-masha { background: linear-gradient(180deg, #2d3436, var(--masha)); display: none; border-right: 2px solid rgba(0,0,0,0.3); }
         #zone-dima { background: linear-gradient(180deg, #2d3436, var(--dima)); }
 
-        /* Мяч */
         .ball { 
             position: absolute; width: 75px; height: 75px; background: white;
             background-image: radial-gradient(circle at 50% 50%, #333 22%, transparent 24%), radial-gradient(circle at 0% 0%, #333 22%, transparent 24%);
             background-size: 40px 40px; border-radius: 50%; box-shadow: 0 10px 20px rgba(0,0,0,0.4); z-index: 10; 
         }
 
-        /* Тексты и UI */
         .info { position: absolute; top: 10%; width: 100%; text-align: center; color: white; pointer-events: none; z-index: 20; }
-        .score { font-size: 60px; font-weight: 900; margin: 0; text-shadow: 0 5px 15px rgba(0,0,0,0.3); }
-        .player-name { font-size: 20px; font-weight: bold; text-transform: uppercase; letter-spacing: 2px; }
-
-        /* Всплывающая ачивка */
+        .score { font-size: 60px; font-weight: 900; margin: 0; }
+        
         #ach-toast {
-            position: absolute; top: -100px; left: 50%; transform: translateX(-50%);
+            position: fixed; top: -100px; left: 50%; transform: translateX(-50%);
             background: #2d3436; color: var(--gold); padding: 15px 30px;
             border-radius: 50px; border: 2px solid var(--gold); z-index: 2000;
-            transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); text-align: center;
+            transition: 0.5s; text-align: center;
         }
         #ach-toast.show { top: 30px; }
 
-        /* Нижняя надпись */
-        #dima-footer {
+        #footer-text {
             position: absolute; bottom: 15px; width: 100%; text-align: center;
             color: rgba(255,255,255,0.6); font-size: 12px; pointer-events: none; z-index: 50;
         }
@@ -57,43 +53,37 @@
 <body>
 
 <div id="menu">
-    <h1 style="color: white; margin-bottom: 50px; letter-spacing: 5px;">FOOTBALL 2026</h1>
-    <button class="menu-btn" id="btn-single" onclick="startMode(1)">ИГРАТЬ (ДИМА)</button>
-    <button class="menu-btn" id="btn-duo" onclick="startMode(2)">МАША VS ДИМА</button>
-    <div style="color: #888; font-size: 14px; margin-top: 30px;">Привет Дима, игра иногда будет обновляться</div>
+    <h1 style="color: white; margin-bottom: 40px; letter-spacing: 3px;">FOOTBALL 2026</h1>
+    <!-- Мы добавили onpointerdown вместо onclick для мгновенного срабатывания -->
+    <button class="menu-btn" id="btn-single" onpointerdown="startMode(1)">ИГРАТЬ (ДИМА)</button>
+    <button class="menu-btn" onpointerdown="startMode(2)">МАША VS ДИМА</button>
+    <div style="color: #888; font-size: 14px; margin-top: 30px; text-align: center;">
+        Привет Дима, игра иногда будет обновляться
+    </div>
 </div>
 
 <div id="ach-toast">
-    <div style="font-size: 10px; opacity: 0.8;">ДОСТИЖЕНИЕ ПОЛУЧЕНО</div>
     <div id="ach-name" style="font-size: 18px; font-weight: bold;"></div>
 </div>
 
 <div id="game-container">
     <div id="zone-masha" class="zone">
-        <div class="info">
-            <div class="player-name">Маша</div>
-            <div id="score-masha" class="score">0</div>
-        </div>
+        <div class="info"><div style="font-size:20px">МАША</div><div id="score-masha" class="score">0</div></div>
         <div id="ball-masha" class="ball"></div>
     </div>
-
     <div id="zone-dima" class="zone">
-        <div class="info">
-            <div class="player-name">Дима</div>
-            <div id="score-dima" class="score">0</div>
-        </div>
+        <div class="info"><div style="font-size:20px">ДИМА</div><div id="score-dima" class="score">0</div></div>
         <div id="ball-dima" class="ball"></div>
     </div>
 </div>
 
-<div id="dima-footer">
-    Привет Дима, при обновлениях в 2026 году твой рекорд может сбрасываться.
+<div id="footer-text">
+    Привет Дима, при обновлениях твой рекорд может сбрасываться.
 </div>
 
 <script>
-    const config = { gravity: 0.45, friction: 0.98, kickForce: -15 };
-    let isTwoPlayer = false;
-    let unlockedAchs = JSON.parse(localStorage.getItem('football-achs-2026')) || [];
+    const config = { grav: 0.45, fric: 0.98, kick: -15 };
+    let isTwo = false;
 
     class Player {
         constructor(zoneId, ballId, scoreId, name) {
@@ -107,15 +97,15 @@
         reset() {
             const r = this.zone.getBoundingClientRect();
             this.x = r.width / 2 - 37;
-            this.y = r.height / 2;
+            this.y = r.height / 3;
             this.vx = 0; this.vy = 0; this.score = 0;
             this.scoreEl.textContent = 0;
         }
         update() {
             if (!this.active) return;
-            this.vy += config.gravity;
+            this.vy += config.grav;
             this.x += this.vx; this.y += this.vy;
-            this.vx *= config.friction;
+            this.vx *= config.fric;
             const r = this.zone.getBoundingClientRect();
 
             if (this.x < 0) { this.x = 0; this.vx *= -0.8; }
@@ -126,16 +116,14 @@
             this.rot += this.vx * 2;
             this.ball.style.transform = `translate(${this.x}px, ${this.y}px) rotate(${this.rot}deg)`;
         }
-        kick(cx, cy) {
+        hit(cx, cy) {
             const b = this.ball.getBoundingClientRect();
             const bx = b.left + 37; const by = b.top + 37;
-            const dist = Math.hypot(cx - bx, cy - by);
-            if (dist < 65) {
+            if (Math.hypot(cx - bx, cy - by) < 70) {
                 this.score++;
                 this.scoreEl.textContent = this.score;
-                this.vy = config.kickForce;
+                this.vy = config.kick;
                 this.vx = (bx - cx) * 0.7;
-                checkAchievements(this.score, this.name);
             }
         }
     }
@@ -145,38 +133,14 @@
 
     function startMode(mode) {
         document.getElementById('menu').style.display = 'none';
-        document.getElementById('game-container').style.opacity = '1';
-        isTwoPlayer = (mode === 2);
-        
-        if (isTwoPlayer) {
+        document.getElementById('game-container').style.visibility = 'visible';
+        isTwo = (mode === 2);
+        if (isTwo) {
             document.getElementById('zone-masha').style.display = 'block';
             masha.active = true; masha.reset();
         }
         dima.active = true; dima.reset();
         gameLoop();
-    }
-
-    function checkAchievements(score, pName) {
-        const achs = [
-            { id: '1', name: 'Первое касание!', val: 1 },
-            { id: '10', name: 'Начинающий профи (10)', val: 10 },
-            { id: '50', name: 'Мастер мяча 2026 (50)', val: 50 }
-        ];
-        achs.forEach(a => {
-            let key = pName + '_' + a.id;
-            if (score >= a.val && !unlockedAchs.includes(key)) {
-                unlockedAchs.push(key);
-                localStorage.setItem('football-achs-2026', JSON.stringify(unlockedAchs));
-                showToast(pName + ': ' + a.name);
-            }
-        });
-    }
-
-    function showToast(text) {
-        const toast = document.getElementById('ach-toast');
-        document.getElementById('ach-name').textContent = text;
-        toast.classList.add('show');
-        setTimeout(() => toast.classList.remove('show'), 3000);
     }
 
     function gameLoop() {
@@ -185,19 +149,17 @@
         requestAnimationFrame(gameLoop);
     }
 
-    function handleInput(e) {
-        const cx = e.touches ? e.touches[0].clientX : e.clientX;
-        const cy = e.touches ? e.touches[0].clientY : e.clientY;
-        if (isTwoPlayer) {
-            if (cx < window.innerWidth / 2) masha.kick(cx, cy);
-            else dima.kick(cx, cy);
+    // Слушатель касаний для игры
+    window.addEventListener('pointerdown', (e) => {
+        const cx = e.clientX;
+        const cy = e.clientY;
+        if (isTwo) {
+            if (cx < window.innerWidth / 2) masha.hit(cx, cy);
+            else dima.hit(cx, cy);
         } else {
-            dima.kick(cx, cy);
+            dima.hit(cx, cy);
         }
-    }
-
-    window.addEventListener('touchstart', (e) => { e.preventDefault(); handleInput(e); }, {passive:false});
-    window.addEventListener('mousedown', handleInput);
+    });
 </script>
 </body>
 </html>
