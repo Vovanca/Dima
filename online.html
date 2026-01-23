@@ -3,122 +3,166 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Football Online Battle</title>
+    <title>Football Pro Rooms 2026</title>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com";
-        import { getDatabase, ref, set, onValue, update, onDisconnect } from "https://www.gstatic.com";
+        import { getDatabase, ref, set, onValue, update, onDisconnect, remove } from "https://www.gstatic.com";
 
-        // КОНФИГУРАЦИЯ FIREBASE (Вставь свою сюда)
         const firebaseConfig = {
-            apiKey: "ВАШ_API_KEY",
-            databaseURL: "https://ВАШ_ПРОЕКТ.firebaseio.com",
-            projectId: "ВАШ_ПРОЕКТ",
-            appId: "ВАШ_APP_ID"
+            apiKey: "AIzaSyAAvBTIamQLMW2FvHBiA0LDr_TkW7YajVU",
+            authDomain: "football-3b1a1.firebaseapp.com",
+            databaseURL: "https://football-3b1a1-default-rtdb.firebaseio.com",
+            projectId: "football-3b1a1",
+            storageBucket: "football-3b1a1.firebasestorage.app",
+            messagingSenderId: "13715190575",
+            appId: "1:13715190575:web:922b93c0039ca4941f67da"
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        let myRole = ""; 
-        let target = 10;
-        let players = { masha: { y: 30, score: 0 }, dima: { y: 30, score: 0 } };
+        let myId = Math.random().toString(36).substring(7);
+        let myName = "", roomID = "", isAdmin = false, isPaused = false;
+        let players = {}, targetScore = 10;
 
-        window.join = (role) => {
-            myRole = role;
-            target = parseInt(document.getElementById('targetInput').value) || 10;
+        window.joinRoom = (asAdmin) => {
+            myName = document.getElementById('nickInput').value.trim() || "Игрок";
+            roomID = document.getElementById('roomInput').value.trim() || "123";
+            targetScore = parseInt(document.getElementById('targetInput').value) || 10;
+            isAdmin = asAdmin;
+
             document.getElementById('menu').style.display = 'none';
             document.getElementById('game').style.visibility = 'visible';
+            if (isAdmin) document.getElementById('admin-panel').style.display = 'block';
 
-            update(ref(db, 'game/'), { target: target });
-            const myRef = ref(db, 'game/players/' + myRole);
-            set(myRef, { y: 30, score: 0, active: true });
-            onDisconnect(myRef).remove(); 
+            const myRef = ref(db, `rooms/${roomID}/players/${myId}`);
+            if (isAdmin) {
+                update(ref(db, `rooms/${roomID}`), { hostId: myId, target: targetScore, paused: false });
+            }
 
-            startLoop();
+            set(myRef, { name: myName, y: 30, score: 0 });
+            onDisconnect(myRef).remove();
+
+            onValue(ref(db, `rooms/${roomID}`), (snapshot) => {
+                const data = snapshot.val();
+                if (!data) return;
+                players = data.players || {};
+                targetScore = data.target || 10;
+                isPaused = data.paused || false;
+                
+                document.getElementById('pause-screen').style.display = isPaused ? 'flex' : 'none';
+                render();
+            });
+
+            startPhysics();
         };
 
-        onValue(ref(db, 'game/'), (snapshot) => {
-            const data = snapshot.val();
-            if (data && data.players) {
-                players = data.players;
-                target = data.target || 10;
-                render();
-                checkWin();
-            }
-        });
+        window.togglePause = () => {
+            if (!isAdmin) return;
+            update(ref(db, `rooms/${roomID}`), { paused: !isPaused });
+        };
 
-        let vy = 0; let myY = 30; let myScore = 0;
-
-        function startLoop() {
+        let vy = 0, myY = 30, myScore = 0;
+        function startPhysics() {
             setInterval(() => {
-                vy += 0.5; myY += vy;
+                if (isPaused) return;
+                vy += 0.45; myY += vy;
                 if (myY > 90) { myY = 30; vy = 0; myScore = 0; sync(); }
                 if (myY < 0) { myY = 0; vy = 0; }
-                const b = document.getElementById('ball-' + myRole);
+                const b = document.getElementById('my-ball');
                 if (b) b.style.top = myY + "%";
             }, 30);
         }
 
         function sync() {
-            update(ref(db, `game/players/${myRole}`), { y: myY, score: myScore });
+            update(ref(db, `rooms/${roomID}/players/${myId}`), { y: myY, score: myScore });
         }
 
         window.kick = () => {
-            if (!myRole) return;
-            vy = -12; myScore++; sync();
+            if (isPaused) return;
+            vy = -13; myScore++;
+            sync();
+            if (myScore >= targetScore) {
+                alert("ВЫ ПОБЕДИЛИ!");
+                location.reload();
+            }
         };
 
         function render() {
-            Object.keys(players).forEach(role => {
-                const ball = document.getElementById('ball-' + role);
-                const sc = document.getElementById('score-' + role);
-                if (ball && role !== myRole) ball.style.top = players[role].y + "%";
-                if (sc) sc.textContent = players[role].score;
-                document.getElementById('goal').textContent = target;
-            });
-        }
+            const list = document.getElementById('leaderboard-list');
+            list.innerHTML = "";
+            const field = document.getElementById('game-field');
+            document.querySelectorAll('.remote-ball').forEach(el => el.remove());
 
-        function checkWin() {
-            Object.keys(players).forEach(role => {
-                if (players[role].score >= target) {
-                    alert("ПОБЕДИЛ(А) " + role.toUpperCase());
-                    location.reload();
+            // Сортировка для таблицы лидеров
+            const sorted = Object.values(players).sort((a,b) => b.score - a.score);
+            sorted.forEach(p => {
+                list.innerHTML += `<div>${p.name}: ${p.score}</div>`;
+            });
+
+            Object.keys(players).forEach(id => {
+                if (id !== myId) {
+                    let rb = document.createElement('div');
+                    rb.className = 'ball remote-ball';
+                    rb.style.top = players[id].y + "%";
+                    rb.innerHTML = `<div class="name-tag">${players[id].name}</div>`;
+                    field.appendChild(rb);
                 }
             });
         }
-        window.addEventListener('pointerdown', kick);
+
+        window.addEventListener('pointerdown', (e) => {
+            if (document.getElementById('game').style.visibility === 'visible' && e.target.tagName !== 'BUTTON') kick();
+        });
     </script>
     <style>
-        body { margin: 0; background: #1e272e; font-family: sans-serif; color: white; overflow: hidden; touch-action: none; }
-        #menu { position: fixed; inset: 0; z-index: 100; background: #1e272e; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        #game { position: relative; width: 100vw; height: 100vh; display: flex; visibility: hidden; background: #2ecc71; }
-        .zone { flex: 1; position: relative; border: 1px solid rgba(0,0,0,0.1); }
-        .ball { position: absolute; left: 50%; width: 60px; height: 60px; background: white; border-radius: 50%; transform: translateX(-50%); border: 3px solid #333; transition: top 0.1s linear; }
-        .score { font-size: 40px; font-weight: bold; text-align: center; margin-top: 20px; }
-        button { padding: 15px 30px; margin: 10px; font-weight: bold; border-radius: 50px; border: none; cursor: pointer; background: #fdcb6e; }
-        input { padding: 10px; border-radius: 10px; text-align: center; font-size: 18px; width: 80px; }
+        body { margin: 0; background: #1a1a1a; font-family: sans-serif; color: white; overflow: hidden; touch-action: none; }
+        #menu { position: fixed; inset: 0; z-index: 100; background: #1e272e; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+        #game { position: relative; width: 100vw; height: 100vh; visibility: hidden; background: #2ecc71; }
+        .ball { position: absolute; left: 50%; width: 60px; height: 60px; background: white; border-radius: 50%; transform: translateX(-50%); border: 3px solid #333; }
+        #my-ball { border-color: gold; z-index: 10; }
+        .name-tag { position: absolute; top: -20px; width: 100px; left: -20px; text-align: center; font-size: 10px; color: black; font-weight: bold; }
+        
+        /* Панели */
+        #admin-panel { position: absolute; bottom: 20px; left: 20px; display: none; z-index: 200; }
+        #leaderboard { position: absolute; top: 20px; right: 20px; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 10px; pointer-events: none; }
+        #pause-screen { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; justify-content: center; align-items: center; z-index: 500; font-size: 40px; font-weight: bold; color: gold; }
+        
+        input { padding: 10px; border-radius: 8px; border: none; width: 200px; text-align: center; }
+        button { padding: 12px 25px; border-radius: 50px; border: none; cursor: pointer; font-weight: bold; }
+        .btn-create { background: #f1c40f; }
+        .btn-join { background: #3498db; color: white; }
     </style>
 </head>
 <body>
-    <div id="menu">
-        <h1>ОНЛАЙН РЕЖИМ 2026</h1>
-        <p>Цель: <input type="number" id="targetInput" value="10"></p>
-        <button style="background:#ff7675" onclick="join('masha')">Я МАША</button>
-        <button style="background:#74b9ff" onclick="join('dima')">Я ДИМА</button>
-        <button style="background:#888; color:white; font-size:12px" onclick="location.href='index.html'">Назад</button>
+
+<div id="menu">
+    <h1>FOOTBALL 2026 ONLINE</h1>
+    <input type="text" id="nickInput" placeholder="Твой Ник">
+    <input type="text" id="roomInput" placeholder="Код комнаты">
+    <input type="number" id="targetInput" value="10" placeholder="Цель баллов">
+    <button class="btn-create" onclick="joinRoom(true)">СОЗДАТЬ КОМНАТУ</button>
+    <button class="btn-join" onclick="joinRoom(false)">ВОЙТИ ПО КОДУ</button>
+</div>
+
+<div id="pause-screen">ПАУЗА</div>
+
+<div id="game">
+    <div id="leaderboard">
+        <div style="font-size: 12px; border-bottom: 1px solid white; margin-bottom: 5px;">ЛИДЕРЫ РУМА</div>
+        <div id="leaderboard-list"></div>
     </div>
-    <div id="game">
-        <div class="zone" style="background: rgba(255,118,117,0.2)">
-            <div class="score" id="score-masha">0</div>
-            <div style="text-align:center">МАША</div>
-            <div id="ball-masha" class="ball" style="top: 30%"></div>
-        </div>
-        <div class="zone" style="background: rgba(116,185,255,0.2)">
-            <div class="score" id="score-dima">0</div>
-            <div style="text-align:center">ДИМА</div>
-            <div id="ball-dima" class="ball" style="top: 30%"></div>
-        </div>
-        <div style="position:fixed; bottom:10px; width:100%; text-align:center">Цель: <span id="goal">10</span></div>
+
+    <div id="admin-panel">
+        <button onclick="togglePause()" style="background: orange;">ПАУЗА / СТАРТ</button>
     </div>
+
+    <div id="game-field">
+        <div id="my-ball" class="ball" style="top: 30%;">
+            <div class="name-tag" style="color: white; text-shadow: 1px 1px 1px black;">ВЫ</div>
+        </div>
+    </div>
+</div>
+
 </body>
 </html>
