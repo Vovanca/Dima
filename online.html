@@ -2,54 +2,127 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Тест связи</title>
-</head>
-<body style="background: #222; color: white; text-align: center; padding-top: 50px;">
-
-    <h1>ПРОВЕРКА СВЯЗИ</h1>
-    <p id="status">Нажми на кнопку ниже</p>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Football Online Battle</title>
     
-    <button id="testBtn" style="padding: 20px; font-size: 20px; background: gold; border-radius: 10px;">
-        СОЗДАТЬ КОМНАТУ
-    </button>
+    <!-- Подключаем Firebase старым, супер-стабильным способом -->
+    <script src="https://www.gstatic.com"></script>
+    <script src="https://www.gstatic.com"></script>
 
-    <script type="module">
-        // Импортируем только самое нужное
-        import { initializeApp } from "https://www.gstatic.com";
-        import { getDatabase, ref, set } from "https://www.gstatic.com";
+    <style>
+        body { margin: 0; background: #1a1a1a; font-family: sans-serif; color: white; text-align: center; touch-action: none; }
+        #menu { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 15px; }
+        input { padding: 12px; border-radius: 10px; border: none; width: 200px; font-size: 16px; }
+        button { padding: 15px 30px; border-radius: 50px; border: none; background: gold; font-weight: bold; font-size: 18px; cursor: pointer; }
+        #game { display: none; position: relative; width: 100vw; height: 100vh; background: #2ecc71; }
+        .ball { position: absolute; width: 60px; height: 60px; background: white; border-radius: 50%; border: 3px solid #333; left: 50%; transform: translateX(-50%); }
+        #status-bar { font-size: 12px; color: #ff7675; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyAAvBTIamQLMW2FvHBiA0LDr_TkW7YajVU",
-            databaseURL: "https://football-3b1a1-default-rtdb.firebaseio.com",
-            projectId: "football-3b1a1",
-            appId: "1:13715190575:web:922b93c0039ca4941f67da"
-        };
+<div id="menu">
+    <h1 style="color: gold;">FOOTBALL 2026</h1>
+    <div id="status-bar">Ожидание нажатия...</div>
+    <input type="text" id="nick" placeholder="Твой ник">
+    <input type="text" id="room" placeholder="Код комнаты (напр. 777)">
+    <button onclick="joinGame()">СОЗДАТЬ / ВОЙТИ</button>
+</div>
 
-        try {
-            const app = initializeApp(firebaseConfig);
-            const db = getDatabase(app);
-            const btn = document.getElementById('testBtn');
-            const status = document.getElementById('status');
+<div id="game">
+    <div id="score-board" style="padding: 20px; font-size: 30px; font-weight: bold;">0</div>
+    <div id="my-ball" class="ball" style="top: 30%;"></div>
+    <div id="players-layer"></div>
+</div>
 
-            btn.onclick = function() {
-                status.innerText = "Пытаюсь отправить данные...";
-                
-                // Пробуем записать тестовое значение
-                set(ref(db, 'test_connect'), {
-                    time: new Date().getTime(),
-                    msg: "Работает!"
-                }).then(() => {
-                    alert("УРА! Связь с Firebase есть!");
-                    status.innerText = "ВСЁ РАБОТАЕТ! Можешь ставить основной код.";
-                }).catch((error) => {
-                    alert("ОШИБКА БАЗЫ: " + error.message);
-                    status.innerText = "Ошибка: " + error.message;
-                });
-            };
-        } catch (e) {
-            alert("Критическая ошибка скрипта: " + e.message);
+<script>
+    // Твои ключи
+    const firebaseConfig = {
+        apiKey: "AIzaSyAAvBTIamQLMW2FvHBiA0LDr_TkW7YajVU",
+        databaseURL: "https://football-3b1a1-default-rtdb.firebaseio.com",
+        projectId: "football-3b1a1"
+    };
+
+    // Инициализация
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let myId = "p" + Math.floor(Math.random() * 9999);
+    let currentRoom = "";
+    let myY = 30, vy = 0, score = 0;
+
+    function joinGame() {
+        const status = document.getElementById('status-bar');
+        status.innerText = "Пробую подключиться...";
+
+        const nick = document.getElementById('nick').value || "Игрок";
+        currentRoom = document.getElementById('room').value || "777";
+
+        const roomRef = db.ref('rooms/' + currentRoom + '/players/' + myId);
+
+        // Проверка связи с базой
+        roomRef.set({
+            name: nick,
+            y: myY,
+            score: score
+        }).then(() => {
+            status.innerText = "Успех!";
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('game').style.display = 'block';
+            startPhysics();
+            listenPlayers();
+        }).catch((err) => {
+            status.innerText = "Ошибка: " + err.message;
+            alert("Firebase Error: " + err.message);
+        });
+    }
+
+    function startPhysics() {
+        setInterval(() => {
+            vy += 0.5;
+            myY += vy;
+
+            if (myY > 90) { myY = 30; vy = 0; score = 0; sync(); }
+            if (myY < 0) { myY = 0; vy = 0; }
+
+            document.getElementById('my-ball').style.top = myY + "%";
+            document.getElementById('score-board').innerText = score;
+        }, 30);
+    }
+
+    function sync() {
+        db.ref('rooms/' + currentRoom + '/players/' + myId).update({
+            y: myY,
+            score: score
+        });
+    }
+
+    function listenPlayers() {
+        db.ref('rooms/' + currentRoom + '/players').on('value', (snap) => {
+            const data = snap.val();
+            const layer = document.getElementById('players-layer');
+            layer.innerHTML = "";
+            
+            for (let id in data) {
+                if (id !== myId) {
+                    const rb = document.createElement('div');
+                    rb.className = 'ball';
+                    rb.style.top = data[id].y + "%";
+                    rb.style.opacity = "0.6";
+                    rb.innerHTML = `<div style="position:absolute; top:-20px; width:100px; left:-20px; font-size:10px; color:white;">${data[id].name}</div>`;
+                    layer.appendChild(rb);
+                }
+            }
+        });
+    }
+
+    window.onpointerdown = function(e) {
+        if (document.getElementById('game').style.display === 'block' && e.target.tagName !== 'BUTTON') {
+            vy = -12;
+            score++;
+            sync();
         }
-    </script>
+    };
+</script>
 </body>
 </html>
