@@ -3,227 +3,177 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Pro Football Mobile 2026</title>
+    <title>Football Duo 2026</title>
     <style>
-        :root {
-            --gold: #f1c40f;
-            --grass: #2ecc71;
-            --dark-grass: #27ae60;
-        }
-        body {
-            margin: 0; padding: 0; overflow: hidden;
-            background: var(--grass);
-            font-family: 'Segoe UI', sans-serif;
-            touch-action: none; user-select: none;
-        }
-        #game-container {
-            position: relative; width: 100vw; height: 100vh;
-            background: radial-gradient(circle at center, var(--grass) 0%, var(--dark-grass) 100%);
-        }
-        /* Мяч с улучшенными тенями */
-        #ball {
-            position: absolute; width: 80px; height: 80px;
-            background: white;
-            background-image: 
-                radial-gradient(circle at 50% 50%, #222 22%, transparent 24%),
-                radial-gradient(circle at 0% 0%, #222 22%, transparent 24%),
-                radial-gradient(circle at 100% 0%, #222 22%, transparent 24%),
-                radial-gradient(circle at 0% 100%, #222 22%, transparent 24%),
-                radial-gradient(circle at 100% 100%, #222 22%, transparent 24%);
-            background-size: 44px 44px;
-            border-radius: 50%;
-            box-shadow: inset -8px -8px 20px rgba(0,0,0,0.4), 0 15px 30px rgba(0,0,0,0.3);
-            z-index: 10; will-change: transform;
-        }
-        /* След за мячом */
-        .trail {
-            position: absolute; width: 80px; height: 80px;
-            background: rgba(255,255,255,0.3);
-            border-radius: 50%; pointer-events: none; z-index: 5;
-        }
-        /* UI */
-        #ui {
-            position: absolute; top: 60px; width: 100%;
-            text-align: center; color: white; pointer-events: none; z-index: 20;
-        }
-        .score-text { font-size: 50px; font-weight: 900; margin: 0; text-shadow: 0 4px 10px rgba(0,0,0,0.3); }
-        .best-text { font-size: 18px; background: rgba(0,0,0,0.2); padding: 5px 15px; border-radius: 20px; display: inline-block; }
+        :root { --gold: #f1c40f; --grass: #2ecc71; --masha: #ff6b6b; --dima: #4dabf7; }
+        body { margin: 0; padding: 0; overflow: hidden; background: #222; font-family: 'Segoe UI', sans-serif; touch-action: none; user-select: none; }
+        
+        #game-container { position: relative; width: 100vw; height: 100vh; display: flex; flex-direction: column; }
+        
+        /* Зоны игроков */
+        .player-zone { position: relative; flex: 1; width: 100%; overflow: hidden; transition: 0.5s; border: 2px solid rgba(0,0,0,0.2); }
+        #zone-masha { background: linear-gradient(to bottom, #2d3436, var(--masha)); }
+        #zone-dima { background: linear-gradient(to top, #2d3436, var(--dima)); }
 
-        /* Сообщение для Димы */
-        #dima-msg {
-            position: absolute; bottom: 20px; width: 100%;
-            text-align: center; color: white; font-size: 13px;
-            line-height: 1.5; opacity: 0.8; z-index: 20;
+        /* Мячи */
+        .ball { 
+            position: absolute; width: 70px; height: 70px; background: white;
+            background-image: radial-gradient(circle at 50% 50%, #222 22%, transparent 24%), radial-gradient(circle at 0% 0%, #222 22%, transparent 24%);
+            background-size: 35px 35px; border-radius: 50%; box-shadow: 0 10px 20px rgba(0,0,0,0.3); z-index: 10; 
         }
-        .warning { color: #ffeb3b; font-weight: bold; display: block; margin-top: 5px; }
 
-        /* Ачивки */
-        #achievement {
-            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-            background: #1a1a1a; color: var(--gold); padding: 12px 25px;
-            border-radius: 50px; border: 2px solid var(--gold); text-align: center;
-            z-index: 100; transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        /* Тексты */
+        .info { position: absolute; width: 100%; text-align: center; color: white; pointer-events: none; z-index: 20; }
+        .score { font-size: 40px; font-weight: 900; margin: 5px 0; }
+        .name { font-size: 18px; text-transform: uppercase; letter-spacing: 2px; opacity: 0.8; }
+
+        /* Кнопка режима */
+        #mode-btn {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            z-index: 100; padding: 10px 20px; background: white; border-radius: 30px;
+            font-weight: bold; cursor: pointer; border: none; box-shadow: 0 4px 15px rgba(0,0,0,0.4);
         }
-        .ach-hidden { top: -120px !important; opacity: 0; }
 
-        .particle { position: absolute; border-radius: 50%; pointer-events: none; background: white; }
+        #dima-footer {
+            position: absolute; bottom: 10px; width: 100%; text-align: center;
+            color: white; font-size: 11px; opacity: 0.6; z-index: 100; pointer-events: none;
+        }
+
+        .ach { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); background: gold; color: black; padding: 5px 15px; border-radius: 20px; font-weight: bold; display: none; z-index: 200; }
     </style>
 </head>
 <body>
 
+<button id="mode-btn" onclick="toggleMode()">РЕЖИМ: 1 ИГРОК</button>
+
 <div id="game-container">
-    <div id="achievement" class="ach-hidden">
-        <div style="font-size: 10px; color: #888;">ДОСТИЖЕНИЕ</div>
-        <div id="ach-name">Название</div>
+    <!-- ЗОНА МАШИ -->
+    <div id="zone-masha" class="player-zone">
+        <div class="info" style="top: 20px;">
+            <div class="name">Маша</div>
+            <div id="score-masha" class="score">0</div>
+        </div>
+        <div id="ball-masha" class="ball"></div>
     </div>
 
-    <div id="ui">
-        <p class="score-text" id="score">0</p>
-        <div class="best-text">РЕКОРД: <span id="best">0</span></div>
-    </div>
-
-    <div id="ball"></div>
-
-    <div id="dima-msg">
-        Привет Дима, игра иногда будет обновляться.
-        <span class="warning">При обновлении твой рекорд может сбрасываться!</span>
+    <!-- ЗОНА ДИМЫ -->
+    <div id="zone-dima" class="player-zone">
+        <div id="ball-dima" class="ball"></div>
+        <div class="info" style="bottom: 40px;">
+            <div id="score-dima" class="score">0</div>
+            <div class="name">Дима</div>
+        </div>
     </div>
 </div>
 
+<div id="dima-footer">
+    Привет Дима, игра обновлена (2026). <br> 
+    В режиме 2-х игроков рекорды не сохраняются. При обновлении рекорд может сброситься.
+</div>
+
 <script>
-    const ball = document.getElementById('ball');
-    const scoreElement = document.getElementById('score');
-    const bestElement = document.getElementById('best');
-    const container = document.getElementById('game-container');
-    const achBox = document.getElementById('achievement');
+    const config = { gravity: 0.4, friction: 0.98, kickStr: -14 };
+    let isTwoPlayer = false;
 
-    let score = 0;
-    let best = localStorage.getItem('fb-best-2026') || 0;
-    bestElement.textContent = best;
+    class Player {
+        constructor(id, zoneId, ballId, scoreId) {
+            this.id = id;
+            this.zone = document.getElementById(zoneId);
+            this.ball = document.getElementById(ballId);
+            this.scoreEl = document.getElementById(scoreId);
+            this.score = 0;
+            this.x = 100; this.y = 100; this.vx = 0; this.vy = 0;
+            this.rot = 0;
+            this.active = true;
+        }
 
-    let x = window.innerWidth / 2 - 40;
-    let y = window.innerHeight / 3;
-    let vx = 0;
-    let vy = 0;
-    const gravity = 0.45;
-    const friction = 0.98;
-    let rotation = 0;
+        reset() {
+            const rect = this.zone.getBoundingClientRect();
+            this.x = rect.width / 2 - 35;
+            this.y = rect.height / 3;
+            this.vx = 0; this.vy = 0;
+            this.score = 0;
+            this.scoreEl.textContent = 0;
+        }
 
-    // Ачивки
-    let unlockedAch = JSON.parse(localStorage.getItem('fb-ach-2026')) || [];
-    const achList = [
-        { id: 'start', name: 'Первый удар!', cond: () => score === 1 },
-        { id: 'ten', name: 'Уличный игрок (10)', cond: () => score === 10 },
-        { id: 'pro', name: 'Профи 2026 (30)', cond: () => score === 30 },
-        { id: 'god', name: 'Марадона! (60)', cond: () => score === 60 }
-    ];
+        update() {
+            if (!this.active) return;
+            this.vy += config.gravity;
+            this.x += this.vx;
+            this.y += this.vy;
+            this.vx *= config.friction;
 
-    function update() {
-        vy += gravity;
-        x += vx;
-        y += vy;
-        vx *= friction;
+            const rect = this.zone.getBoundingClientRect();
 
-        // Создание эффекта следа при быстром движении
-        if (Math.abs(vy) > 10) createTrail(x, y);
+            // Стены
+            if (this.x < 0) { this.x = 0; this.vx *= -0.8; }
+            if (this.x + 70 > rect.width) { this.x = rect.width - 70; this.vx *= -0.8; }
+            if (this.y < 0) { this.y = 0; this.vy *= -0.5; }
 
-        // Коллизии со стенами
-        if (x + 80 > window.innerWidth) { x = window.innerWidth - 80; vx *= -0.8; }
-        if (x < 0) { x = 0; vx *= -0.8; }
-        if (y < 0) { y = 0; vy *= -0.5; }
-
-        // Падение
-        if (y > window.innerHeight) {
-            if (score > best) {
-                best = score;
-                localStorage.setItem('fb-best-2026', best);
-                bestElement.textContent = best;
+            // Падение
+            if (this.y > rect.height) {
+                this.reset();
             }
-            score = 0;
-            scoreElement.textContent = score;
-            resetBall();
+
+            this.rot += this.vx * 2;
+            this.ball.style.transform = `translate(${this.x}px, ${this.y}px) rotate(${this.rot}deg)`;
         }
 
-        rotation += vx * 2;
-        ball.style.transform = `translate(${x}px, ${y}px) rotate(${rotation}deg)`;
-        requestAnimationFrame(update);
-    }
+        kick(cx, cy) {
+            const b = this.ball.getBoundingClientRect();
+            const bx = b.left + 35;
+            const by = b.top + 35;
+            const dist = Math.hypot(cx - bx, cy - by);
 
-    function createTrail(tx, ty) {
-        const t = document.createElement('div');
-        t.className = 'trail';
-        t.style.transform = `translate(${tx}px, ${ty}px)`;
-        container.appendChild(t);
-        let op = 0.3;
-        const anim = setInterval(() => {
-            op -= 0.02;
-            t.style.opacity = op;
-            if (op <= 0) { clearInterval(anim); t.remove(); }
-        }, 30);
-    }
-
-    function resetBall() {
-        x = window.innerWidth / 2 - 40;
-        y = window.innerHeight / 4;
-        vx = 0; vy = 0;
-    }
-
-    function kick(e) {
-        const cx = e.touches ? e.touches.clientX : e.clientX;
-        const cy = e.touches ? e.touches.clientY : e.clientY;
-        const rect = ball.getBoundingClientRect();
-        const bx = rect.left + 40;
-        const by = rect.top + 40;
-        const dist = Math.hypot(cx - bx, cy - by);
-
-        if (dist < 70) {
-            score++;
-            scoreElement.textContent = score;
-            vy = -15 - Math.min(score / 5, 5); // Мяч ускоряется с ростом счета
-            vx = (bx - cx) * 0.8;
-            createParticles(cx, cy);
-            checkAch();
-        }
-    }
-
-    function createParticles(px, py) {
-        for(let i=0; i<8; i++) {
-            const p = document.createElement('div');
-            p.className = 'particle';
-            const size = Math.random() * 8 + 4;
-            p.style.width = size + 'px'; p.style.height = size + 'px';
-            p.style.left = px + 'px'; p.style.top = py + 'px';
-            container.appendChild(p);
-            const a = Math.random() * Math.PI * 2;
-            const s = Math.random() * 8 + 2;
-            let mx = Math.cos(a) * s; let my = Math.sin(a) * s;
-            let op = 1;
-            const anim = setInterval(() => {
-                p.style.left = parseFloat(p.style.left) + mx + 'px';
-                p.style.top = parseFloat(p.style.top) + my + 'px';
-                op -= 0.04; p.style.opacity = op;
-                if(op <= 0) { clearInterval(anim); p.remove(); }
-            }, 20);
-        }
-    }
-
-    function checkAch() {
-        achList.forEach(ach => {
-            if (!unlockedAch.includes(ach.id) && ach.cond()) {
-                unlockedAch.push(ach.id);
-                localStorage.setItem('fb-ach-2026', JSON.stringify(unlockedAch));
-                document.getElementById('ach-name').textContent = ach.name;
-                achBox.classList.remove('ach-hidden');
-                setTimeout(() => achBox.classList.add('ach-hidden'), 3500);
+            if (dist < 60) {
+                this.score++;
+                this.scoreEl.textContent = this.score;
+                this.vy = config.kickStr;
+                this.vx = (bx - cx) * 0.6;
             }
-        });
+        }
     }
 
-    container.addEventListener('touchstart', (e) => { e.preventDefault(); kick(e); }, {passive: false});
-    container.addEventListener('mousedown', kick);
+    const masha = new Player('masha', 'zone-masha', 'ball-masha', 'score-masha');
+    const dima = new Player('dima', 'zone-dima', 'ball-dima', 'score-dima');
 
-    update();
+    function toggleMode() {
+        isTwoPlayer = !isTwoPlayer;
+        document.getElementById('mode-btn').textContent = isTwoPlayer ? "РЕЖИМ: 2 ИГРОКА" : "РЕЖИМ: 1 ИГРОК";
+        document.getElementById('zone-masha').style.display = isTwoPlayer ? "block" : "none";
+        masha.active = isTwoPlayer;
+        masha.reset();
+        dima.reset();
+    }
+
+    function handleInput(e) {
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        
+        const mid = window.innerHeight / 2;
+        if (isTwoPlayer) {
+            if (cy < mid) masha.kick(cx, cy);
+            else dima.kick(cx, cy);
+        } else {
+            dima.kick(cx, cy);
+        }
+    }
+
+    function loop() {
+        masha.update();
+        dima.update();
+        requestAnimationFrame(loop);
+    }
+
+    window.addEventListener('touchstart', (e) => { e.preventDefault(); handleInput(e); }, {passive:false});
+    window.addEventListener('mousedown', handleInput);
+
+    // Начальное состояние
+    document.getElementById('zone-masha').style.display = "none";
+    masha.active = false;
+    
+    dima.reset();
+    loop();
 </script>
-
 </body>
 </html>
