@@ -3,64 +3,69 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Football 2026 Fix</title>
-    <script src="https://www.gstatic.com"></script>
-    <script src="https://www.gstatic.com"></script>
+    <title>Football Peer 2026</title>
+    <!-- Используем легкую библиотеку для прямой связи между телефонами -->
+    <script src="https://unpkg.com"></script>
     <style>
-        body { margin: 0; background: #1a1a1a; font-family: sans-serif; color: white; text-align: center; }
+        body { margin: 0; background: #1a1a1a; font-family: sans-serif; color: white; text-align: center; overflow: hidden; touch-action: none; }
         #menu { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 15px; }
-        button { padding: 15px 30px; background: gold; border: none; border-radius: 50px; font-weight: bold; }
         #game { display: none; width: 100vw; height: 100vh; background: #2ecc71; position: relative; }
-        .ball { position: absolute; width: 60px; height: 60px; background: white; border-radius: 50%; left: 50%; transform: translateX(-50%); border: 2px solid #000; }
-        #status { color: #ff7675; font-size: 14px; padding: 10px; }
+        .ball { position: absolute; width: 60px; height: 60px; background: white; border-radius: 50%; left: 50%; transform: translateX(-50%); border: 3px solid #333; }
+        .remote-ball { opacity: 0.5; border-color: red; }
+        button { padding: 15px 30px; background: gold; border: none; border-radius: 50px; font-weight: bold; cursor: pointer; }
+        input { padding: 10px; border-radius: 10px; border: none; text-align: center; }
     </style>
 </head>
 <body>
 
 <div id="menu">
-    <h1>FOOTBALL 2026</h1>
-    <div id="status">Нажми кнопку для проверки</div>
-    <input type="text" id="nick" placeholder="Твой ник" style="padding:10px; border-radius:5px;">
-    <button onclick="checkConnection()">ИГРАТЬ</button>
+    <h1>FOOTBALL P2P 2026</h1>
+    <p id="my-id-display">Ваш ID: Загрузка...</p>
+    <input type="text" id="peer-id-input" placeholder="Введите ID Маши/Димы">
+    <button onclick="connectToPeer()">ПОДКЛЮЧИТЬСЯ К ИГРОКУ</button>
+    <p style="font-size: 12px; opacity: 0.6;">(Для игры вдвоем скопируйте свой ID и отправьте другому)</p>
 </div>
 
-<div id="game" onpointerdown="kick()">
+<div id="game">
     <div id="score" style="font-size: 40px; padding: 20px;">0</div>
-    <div id="ball" class="ball" style="top: 30%"></div>
+    <div id="ball" class="ball"></div>
+    <div id="ball-remote" class="ball remote-ball"></div>
 </div>
 
 <script>
-    const firebaseConfig = {
-        apiKey: "AIzaSyAAvBTIamQLMW2FvHBiA0LDr_TkW7YajVU",
-        databaseURL: "https://football-3b1a1-default-rtdb.firebaseio.com",
-        projectId: "football-3b1a1"
-    };
-
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
-    let myId = "p" + Math.floor(Math.random() * 1000);
+    const peer = new Peer(); // Создаем прямое соединение
+    let conn;
     let myY = 30, vy = 0, score = 0;
+    let remoteY = 30;
 
-    function checkConnection() {
-        const stat = document.getElementById('status');
-        stat.innerText = "Связываюсь с сервером...";
-        
-        // Ставим ловушку на случай зависания
-        const timeout = setTimeout(() => {
-            stat.innerHTML = "Ошибка: Время ожидания вышло.<br>Проверь Rules в Firebase (должно быть true)!";
-        }, 7000);
+    // Получаем свой ID
+    peer.on('open', (id) => {
+        document.getElementById('my-id-display').innerText = "Ваш ID: " + id;
+    });
 
-        db.ref('.info/connected').on('value', (snap) => {
-            if (snap.val() === true) {
-                clearTimeout(timeout);
-                stat.innerText = "Есть контакт! Вхожу...";
-                setTimeout(launch, 1000);
-            }
+    // Когда кто-то подключается к нам
+    peer.on('connection', (c) => {
+        conn = c;
+        setupChat();
+        launchGame();
+    });
+
+    // Когда мы подключаемся к кому-то
+    function connectToPeer() {
+        const remoteId = document.getElementById('peer-id-input').value;
+        conn = peer.connect(remoteId);
+        setupChat();
+        launchGame();
+    }
+
+    function setupChat() {
+        conn.on('data', (data) => {
+            remoteY = data.y;
+            document.getElementById('ball-remote').style.top = remoteY + "%";
         });
     }
 
-    function launch() {
+    function launchGame() {
         document.getElementById('menu').style.display = 'none';
         document.getElementById('game').style.display = 'block';
         
@@ -69,15 +74,18 @@
             if (myY > 90) { myY = 30; vy = 0; score = 0; }
             document.getElementById('ball').style.top = myY + "%";
             document.getElementById('score').innerText = score;
-            // Синхронизация
-            db.ref('rooms/777/' + myId).set({y: myY, s: score});
+            
+            // Отправляем свои координаты напрямую другому телефону
+            if (conn && conn.open) {
+                conn.send({ y: myY });
+            }
         }, 30);
     }
 
-    window.kick = function() {
+    window.onpointerdown = () => {
         vy = -12;
         score++;
-    }
+    };
 </script>
 </body>
 </html>
