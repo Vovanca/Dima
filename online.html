@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Football Online Battle</title>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com";
+        import { getDatabase, ref, set, onValue, update, onDisconnect } from "https://www.gstatic.com";
+
+        // КОНФИГУРАЦИЯ FIREBASE (Вставь свою сюда)
+        const firebaseConfig = {
+            apiKey: "ВАШ_API_KEY",
+            databaseURL: "https://ВАШ_ПРОЕКТ.firebaseio.com",
+            projectId: "ВАШ_ПРОЕКТ",
+            appId: "ВАШ_APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        let myRole = ""; 
+        let target = 10;
+        let players = { masha: { y: 30, score: 0 }, dima: { y: 30, score: 0 } };
+
+        window.join = (role) => {
+            myRole = role;
+            target = parseInt(document.getElementById('targetInput').value) || 10;
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('game').style.visibility = 'visible';
+
+            update(ref(db, 'game/'), { target: target });
+            const myRef = ref(db, 'game/players/' + myRole);
+            set(myRef, { y: 30, score: 0, active: true });
+            onDisconnect(myRef).remove(); 
+
+            startLoop();
+        };
+
+        onValue(ref(db, 'game/'), (snapshot) => {
+            const data = snapshot.val();
+            if (data && data.players) {
+                players = data.players;
+                target = data.target || 10;
+                render();
+                checkWin();
+            }
+        });
+
+        let vy = 0; let myY = 30; let myScore = 0;
+
+        function startLoop() {
+            setInterval(() => {
+                vy += 0.5; myY += vy;
+                if (myY > 90) { myY = 30; vy = 0; myScore = 0; sync(); }
+                if (myY < 0) { myY = 0; vy = 0; }
+                const b = document.getElementById('ball-' + myRole);
+                if (b) b.style.top = myY + "%";
+            }, 30);
+        }
+
+        function sync() {
+            update(ref(db, `game/players/${myRole}`), { y: myY, score: myScore });
+        }
+
+        window.kick = () => {
+            if (!myRole) return;
+            vy = -12; myScore++; sync();
+        };
+
+        function render() {
+            Object.keys(players).forEach(role => {
+                const ball = document.getElementById('ball-' + role);
+                const sc = document.getElementById('score-' + role);
+                if (ball && role !== myRole) ball.style.top = players[role].y + "%";
+                if (sc) sc.textContent = players[role].score;
+                document.getElementById('goal').textContent = target;
+            });
+        }
+
+        function checkWin() {
+            Object.keys(players).forEach(role => {
+                if (players[role].score >= target) {
+                    alert("ПОБЕДИЛ(А) " + role.toUpperCase());
+                    location.reload();
+                }
+            });
+        }
+        window.addEventListener('pointerdown', kick);
+    </script>
+    <style>
+        body { margin: 0; background: #1e272e; font-family: sans-serif; color: white; overflow: hidden; touch-action: none; }
+        #menu { position: fixed; inset: 0; z-index: 100; background: #1e272e; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        #game { position: relative; width: 100vw; height: 100vh; display: flex; visibility: hidden; background: #2ecc71; }
+        .zone { flex: 1; position: relative; border: 1px solid rgba(0,0,0,0.1); }
+        .ball { position: absolute; left: 50%; width: 60px; height: 60px; background: white; border-radius: 50%; transform: translateX(-50%); border: 3px solid #333; transition: top 0.1s linear; }
+        .score { font-size: 40px; font-weight: bold; text-align: center; margin-top: 20px; }
+        button { padding: 15px 30px; margin: 10px; font-weight: bold; border-radius: 50px; border: none; cursor: pointer; background: #fdcb6e; }
+        input { padding: 10px; border-radius: 10px; text-align: center; font-size: 18px; width: 80px; }
+    </style>
+</head>
+<body>
+    <div id="menu">
+        <h1>ОНЛАЙН РЕЖИМ 2026</h1>
+        <p>Цель: <input type="number" id="targetInput" value="10"></p>
+        <button style="background:#ff7675" onclick="join('masha')">Я МАША</button>
+        <button style="background:#74b9ff" onclick="join('dima')">Я ДИМА</button>
+        <button style="background:#888; color:white; font-size:12px" onclick="location.href='index.html'">Назад</button>
+    </div>
+    <div id="game">
+        <div class="zone" style="background: rgba(255,118,117,0.2)">
+            <div class="score" id="score-masha">0</div>
+            <div style="text-align:center">МАША</div>
+            <div id="ball-masha" class="ball" style="top: 30%"></div>
+        </div>
+        <div class="zone" style="background: rgba(116,185,255,0.2)">
+            <div class="score" id="score-dima">0</div>
+            <div style="text-align:center">ДИМА</div>
+            <div id="ball-dima" class="ball" style="top: 30%"></div>
+        </div>
+        <div style="position:fixed; bottom:10px; width:100%; text-align:center">Цель: <span id="goal">10</span></div>
+    </div>
+</body>
+</html>
