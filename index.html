@@ -3,182 +3,190 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Football Battle 2026</title>
+    <title>Football Online Battle 2026</title>
+    <script type="module">
+        // --- НАСТРОЙКА FIREBASE ---
+        import { initializeApp } from "https://www.gstatic.com";
+        import { getDatabase, ref, set, onValue, push, remove, onDisconnect, update } from "https://www.gstatic.com";
+
+        const firebaseConfig = {
+            apiKey: "ТВОЙ_API_KEY",
+            authDomain: "ТВОЙ_PROJECT.firebaseapp.com",
+            databaseURL: "https://ТВОЙ_PROJECT.firebaseio.com",
+            projectId: "ТВОЙ_PROJECT",
+            storageBucket: "ТВОЙ_PROJECT.appspot.com",
+            messagingSenderId: "ID",
+            appId: "APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // --- ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ---
+        let myId = Math.random().toString(36).substring(7);
+        let myName = "";
+        let currentRoom = null;
+        let isAdmin = false;
+        let players = {};
+
+        // --- ЭЛЕМЕНТЫ ИНТЕРФЕЙСА ---
+        const screens = {
+            auth: document.getElementById('screen-auth'),
+            lobby: document.getElementById('screen-lobby'),
+            game: document.getElementById('screen-game')
+        };
+
+        window.createRoom = () => {
+            myName = document.getElementById('nickname').value || "Игрок";
+            currentRoom = Math.floor(1000 + Math.random() * 9000).toString();
+            isAdmin = true;
+            joinRoomLogic();
+        };
+
+        window.joinRoom = () => {
+            myName = document.getElementById('nickname').value || "Игрок";
+            currentRoom = document.getElementById('room-id').value;
+            if(!currentRoom) return alert("Введите ID комнаты");
+            isAdmin = false;
+            joinRoomLogic();
+        };
+
+        function joinRoomLogic() {
+            const playerRef = ref(db, `rooms/${currentRoom}/players/${myId}`);
+            set(playerRef, { name: myName, isAdmin: isAdmin, x: 50, y: 30, score: 0 });
+            onDisconnect(playerRef).remove();
+
+            screens.auth.style.display = 'none';
+            screens.lobby.style.display = 'flex';
+            document.getElementById('display-room-id').textContent = currentRoom;
+
+            // Следим за комнатой
+            onValue(ref(db, `rooms/${currentRoom}`), (snapshot) => {
+                const data = snapshot.val();
+                if (!data) return;
+                
+                // Проверка на кик
+                if (data.players && !data.players[myId]) {
+                    location.reload(); 
+                    alert("Вас исключили!");
+                }
+
+                players = data.players || {};
+                renderLobby(players);
+
+                if (data.status === "playing") {
+                    startGameUI();
+                }
+            });
+        }
+
+        function renderLobby(playersList) {
+            const list = document.getElementById('players-list');
+            list.innerHTML = "";
+            Object.keys(playersList).forEach(id => {
+                const p = playersList[id];
+                const li = document.createElement('div');
+                li.className = 'player-item';
+                li.innerHTML = `<span>${p.name} ${p.isAdmin ? '👑' : ''}</span>`;
+                if (isAdmin && id !== myId) {
+                    const btn = document.createElement('button');
+                    btn.textContent = "КИК";
+                    btn.onclick = () => remove(ref(db, `rooms/${currentRoom}/players/${id}`));
+                    li.appendChild(btn);
+                }
+                list.appendChild(li);
+            });
+            document.getElementById('start-btn').style.display = isAdmin ? 'block' : 'none';
+        }
+
+        window.startSyncGame = () => {
+            update(ref(db, `rooms/${currentRoom}`), { status: "playing" });
+        };
+
+        // --- ЛОГИКА ИГРЫ ---
+        let ballPos = { x: 50, y: 30 };
+        let vy = 0;
+        
+        function startGameUI() {
+            screens.lobby.style.display = 'none';
+            screens.game.style.display = 'block';
+            gameLoop();
+        }
+
+        function gameLoop() {
+            // Гравитация только для своего мяча
+            vy += 0.5;
+            ballPos.y += vy;
+            if(ballPos.y > 90) { ballPos.y = 30; vy = 0; } // Сброс при падении
+
+            // Отправка своих координат в сеть
+            update(ref(db, `rooms/${currentRoom}/players/${myId}`), {
+                y: ballPos.y
+            });
+
+            // Отрисовка всех игроков
+            const field = document.getElementById('field');
+            field.innerHTML = "";
+            Object.keys(players).forEach(id => {
+                const p = players[id];
+                const b = document.createElement('div');
+                b.className = 'ball';
+                b.style.left = (id === myId ? 25 : 75) + "%"; // Разделение экрана
+                b.style.top = p.y + "%";
+                b.innerHTML = `<div class="ball-name">${p.name}</div>`;
+                field.appendChild(b);
+            });
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        window.kickBall = () => {
+            vy = -12;
+        };
+
+        window.addEventListener('touchstart', (e) => {
+            if(screens.game.style.display === 'block') kickBall();
+        });
+    </script>
     <style>
-        :root { --gold: #f1c40f; --grass: #2ecc71; --masha: #ff6b6b; --dima: #4dabf7; }
-        body { margin: 0; padding: 0; overflow: hidden; background: #1a1a1a; font-family: 'Segoe UI', sans-serif; touch-action: none; user-select: none; }
-        
-        #game-container { position: relative; width: 100vw; height: 100vh; display: flex; flex-direction: row; }
-        
-        /* Зоны игроков (Лево/Право) */
-        .player-zone { position: relative; flex: 1; height: 100%; overflow: hidden; border-right: 2px solid rgba(0,0,0,0.3); display: none; }
-        #zone-masha { background: linear-gradient(135deg, #2d3436, var(--masha)); }
-        #zone-dima { background: linear-gradient(225deg, #2d3436, var(--dima)); display: block; } /* Дима виден всегда */
-
-        .ball { 
-            position: absolute; width: 70px; height: 70px; background: white;
-            background-image: radial-gradient(circle at 50% 50%, #222 22%, transparent 24%), radial-gradient(circle at 0% 0%, #222 22%, transparent 24%);
-            background-size: 35px 35px; border-radius: 50%; box-shadow: 0 8px 15px rgba(0,0,0,0.4); z-index: 10; 
-        }
-
-        .info { position: absolute; top: 15%; width: 100%; text-align: center; color: white; pointer-events: none; z-index: 20; }
-        .score { font-size: 50px; font-weight: 900; margin: 0; text-shadow: 0 4px 10px rgba(0,0,0,0.5); }
-        .name { font-size: 18px; text-transform: uppercase; font-weight: bold; opacity: 0.9; }
-
-        /* Стартовое меню */
-        #menu {
-            position: absolute; inset: 0; background: rgba(0,0,0,0.85);
-            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000;
-        }
-        .menu-btn {
-            padding: 20px 40px; margin: 10px; font-size: 20px; font-weight: bold;
-            border: none; border-radius: 50px; cursor: pointer; transition: 0.3s;
-        }
-        #btn-1 { background: var(--dima); color: white; }
-        #btn-2 { background: var(--gold); color: black; }
-
-        /* Ачивки */
-        #ach-pop {
-            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-            background: #1a1a1a; color: var(--gold); padding: 10px 25px;
-            border-radius: 50px; border: 2px solid var(--gold); z-index: 500;
-            display: none; text-align: center; animation: slideIn 0.5s;
-        }
-        @keyframes slideIn { from { top: -100px; } to { top: 20px; } }
-
-        #dima-footer {
-            position: absolute; bottom: 10px; width: 100%; text-align: center;
-            color: rgba(255,255,255,0.5); font-size: 11px; z-index: 100; pointer-events: none;
-        }
+        body { margin: 0; font-family: sans-serif; background: #222; color: white; overflow: hidden; }
+        .screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 15px; }
+        input { padding: 10px; border-radius: 5px; border: none; }
+        button { padding: 10px 20px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        #field { width: 100vw; height: 100vh; background: #2ecc71; position: relative; }
+        .ball { position: absolute; width: 60px; height: 60px; background: white; border-radius: 50%; transform: translate(-50%, -50%); border: 3px solid #333; }
+        .ball-name { position: absolute; top: -20px; width: 100%; text-align: center; color: black; font-weight: bold; font-size: 12px; }
+        .player-item { background: #333; padding: 10px; margin: 5px; width: 250px; display: flex; justify-content: space-between; border-radius: 5px; }
     </style>
 </head>
 <body>
 
-<div id="menu">
-    <h1 style="color: white; margin-bottom: 30px;">FOOTBALL 2026</h1>
-    <button class="menu-btn" id="btn-1" onclick="start(1)">1 ИГРОК (ДИМА)</button>
-    <button class="menu-btn" id="btn-2" onclick="start(2)">2 ИГРОКА (МАША И ДИМА)</button>
-    <p style="color: grey; font-size: 12px; margin-top: 20px;">Привет Дима, игра иногда будет обновляться</p>
-</div>
-
-<div id="ach-pop">
-    <div style="font-size: 10px; opacity: 0.7;">НОВОЕ ДОСТИЖЕНИЕ</div>
-    <div id="ach-text"></div>
-</div>
-
-<div id="game-container">
-    <div id="zone-masha" class="player-zone">
-        <div class="info">
-            <div class="name">МАША</div>
-            <div id="score-masha" class="score">0</div>
+    <!-- Экран входа -->
+    <div id="screen-auth" class="screen">
+        <h1>FOOTBALL ONLINE</h1>
+        <input type="text" id="nickname" placeholder="Твой Ник">
+        <hr style="width: 200px; opacity: 0.2;">
+        <button onclick="createRoom()">СОЗДАТЬ КОМНАТУ</button>
+        <div style="display:flex; gap:5px;">
+            <input type="text" id="room-id" placeholder="ID Комнаты" style="width: 80px;">
+            <button onclick="joinRoom()" style="background: #2980b9;">ВОЙТИ</button>
         </div>
-        <div id="ball-masha" class="ball"></div>
     </div>
 
-    <div id="zone-dima" class="player-zone">
-        <div class="info">
-            <div class="name" id="dima-label">ДИМА</div>
-            <div id="score-dima" class="score">0</div>
-        </div>
-        <div id="ball-dima" class="ball"></div>
+    <!-- Экран лобби -->
+    <div id="screen-lobby" class="screen" style="display:none;">
+        <h2>КОМНАТА: <span id="display-room-id"></span></h2>
+        <div id="players-list"></div>
+        <button id="start-btn" onclick="startSyncGame()" style="background: #f1c40f; color: black;">НАЧАТЬ ИГРУ</button>
     </div>
-</div>
 
-<div id="dima-footer">
-    Привет Дима, при обновлении в 2026 году твой рекорд может сбрасываться.
-</div>
+    <!-- Экран игры -->
+    <div id="screen-game" style="display:none;">
+        <div id="field"></div>
+        <div style="position:fixed; bottom:10px; width:100%; text-align:center; opacity:0.5; font-size:10px;">
+            Тапай, чтобы набивать мяч! Обновление 2026.
+        </div>
+    </div>
 
-<script>
-    const config = { grav: 0.45, fric: 0.98, kick: -15 };
-    let isTwo = false;
-    let unlocked = JSON.parse(localStorage.getItem('fb-ach-list')) || [];
-
-    class Player {
-        constructor(zoneId, ballId, scoreId) {
-            this.zone = document.getElementById(zoneId);
-            this.ball = document.getElementById(ballId);
-            this.scoreEl = document.getElementById(scoreId);
-            this.score = 0; this.x = 0; this.y = 0; this.vx = 0; this.vy = 0; this.rot = 0;
-            this.active = false;
-        }
-        reset() {
-            const r = this.zone.getBoundingClientRect();
-            this.x = r.width / 2 - 35; this.y = r.height / 3;
-            this.vx = 0; this.vy = 0; this.score = 0;
-            this.scoreEl.textContent = 0;
-        }
-        update() {
-            if (!this.active) return;
-            this.vy += config.grav; this.x += this.vx; this.y += this.vy; this.vx *= config.fric;
-            const r = this.zone.getBoundingClientRect();
-            if (this.x < 0) { this.x = 0; this.vx *= -0.7; }
-            if (this.x + 70 > r.width) { this.x = r.width - 70; this.vx *= -0.7; }
-            if (this.y < 0) { this.y = 0; this.vy *= -0.4; }
-            if (this.y > r.height) this.reset();
-            this.rot += this.vx * 2;
-            this.ball.style.transform = `translate(${this.x}px, ${this.y}px) rotate(${this.rot}deg)`;
-        }
-        kick(cx, cy) {
-            const b = this.ball.getBoundingClientRect();
-            const bx = b.left + 35; const by = b.top + 35;
-            if (Math.hypot(cx - bx, cy - by) < 65) {
-                this.score++; this.scoreEl.textContent = this.score;
-                this.vy = config.kick; this.vx = (bx - cx) * 0.6;
-                checkAch(this.score);
-            }
-        }
-    }
-
-    const masha = new Player('zone-masha', 'ball-masha', 'score-masha');
-    const dima = new Player('zone-dima', 'ball-dima', 'score-dima');
-
-    function start(mode) {
-        document.getElementById('menu').style.display = 'none';
-        isTwo = (mode === 2);
-        if (isTwo) {
-            document.getElementById('zone-masha').style.display = 'block';
-            masha.active = true; masha.reset();
-        }
-        dima.active = true; dima.reset();
-        loop();
-    }
-
-    function checkAch(s) {
-        const achs = [
-            {id:'1', n:'Первый шаг!', v:1},
-            {id:'10', n:'Уже профи (10)', v:10},
-            {id:'50', n:'Легенда Дима/Маша (50)', v:50}
-        ];
-        achs.forEach(a => {
-            if (s >= a.v && !unlocked.includes(a.id)) {
-                unlocked.push(a.id);
-                localStorage.setItem('fb-ach-list', JSON.stringify(unlocked));
-                const pop = document.getElementById('ach-pop');
-                document.getElementById('ach-text').textContent = a.n;
-                pop.style.display = 'block';
-                setTimeout(() => pop.style.display = 'none', 3000);
-            }
-        });
-    }
-
-    function handle(e) {
-        const cx = e.touches ? e.touches[0].clientX : e.clientX;
-        const cy = e.touches ? e.touches[0].clientY : e.clientY;
-        if (isTwo) {
-            if (cx < window.innerWidth / 2) masha.kick(cx, cy);
-            else dima.kick(cx, cy);
-        } else {
-            dima.kick(cx, cy);
-        }
-    }
-
-    function loop() {
-        masha.update(); dima.update();
-        requestAnimationFrame(loop);
-    }
-
-    window.addEventListener('touchstart', (e) => { e.preventDefault(); handle(e); }, {passive:false});
-    window.addEventListener('mousedown', handle);
-</script>
 </body>
 </html>
