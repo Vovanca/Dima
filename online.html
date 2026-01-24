@@ -1,3 +1,21 @@
+// Добавь это в начало своего скрипта в online.html
+window.onload = function() {
+    const name = localStorage.getItem('savedName');
+    const code = localStorage.getItem('savedCode');
+    
+    if (name && code) {
+        // Автоматически заполняем поля, если мы пришли с code.html
+        if(document.getElementById('playerName')) document.getElementById('playerName').value = name;
+        if(document.getElementById('gameCode')) document.getElementById('gameCode').value = code;
+        
+        // Очищаем память, чтобы при следующем входе поля были пустые
+        localStorage.removeItem('savedName');
+        localStorage.removeItem('savedCode');
+        
+        console.log("Данные из code.html получены!");
+    }
+};
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
