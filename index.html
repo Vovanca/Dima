@@ -57,10 +57,7 @@
 <body>
 
 <div id="menu">
-    <!-- Добавь это в блок <div id="menu"> в файле index.html -->
-<p>онлайн в стадии разработки</p>
-    
-
+    <p style="color: #aaa;">онлайн в стадии разработки</p>
     <h1 style="color: white; margin-bottom: 30px; letter-spacing: 3px;">FOOTBALL 2026</h1>
     
     <div class="score-input-container">
@@ -69,8 +66,7 @@
     </div>
 
     <button class="menu-btn" id="btn-single" onpointerdown="startMode(1)">ИГРАТЬ</button>
-    <button class="menu-btn" onpointerdown="startMode(2)">2 игрока</button>
-    <button onclick="window.location.href='level.html'">уровни</button>
+    <button class="menu-btn" onpointerdown="startMode(2)">2 ИГРОКА</button>
     <div style="color: #666; font-size: 12px; margin-top: 20px;">Привет Дима, введи любое число выше</div>
 </div>
 
@@ -100,7 +96,6 @@
 
 <div id="dima-footer">Привет Дима, игра иногда будет обновляться. Рекорд может сброситься.</div>
 
-<script>
 <script>
     const config = { grav: 0.45, fric: 0.98, kick: -15 };
     let isTwo = false;
@@ -147,19 +142,18 @@
             this.ball.style.transform = `translate(${this.x}px, ${this.y}px) rotate(${this.rot}deg)`;
         }
         hit(cx, cy) {
-            if (gameEnded) return;
+            if (gameEnded || !this.active) return;
             const b = this.ball.getBoundingClientRect();
             const bx = b.left + 37; const by = b.top + 37;
             if (Math.hypot(cx - bx, cy - by) < 75) {
-                this.applyKick(bx - cx);
+                this.applyKick((bx - cx) * 0.7);
             }
         }
-        // Вынес логику удара в отдельный метод для чита
-        applyKick(forceX = 0) {
+        applyKick(fX) {
             this.score++;
             this.scoreEl.textContent = this.score;
             this.vy = config.kick;
-            this.vx = forceX * 0.7;
+            this.vx = fX;
             if (this.score >= target) win(this.name);
         }
     }
@@ -170,9 +164,11 @@
     function startMode(mode) {
         let val = parseInt(document.getElementById('targetScore').value);
         target = (val > 0) ? val : 10;
+        
         document.querySelectorAll('.goal-val').forEach(el => el.textContent = target);
         document.getElementById('menu').style.display = 'none';
         document.getElementById('game-container').style.visibility = 'visible';
+        
         isTwo = (mode === 2);
         if (isTwo) {
             document.getElementById('zone-masha').style.display = 'block';
@@ -189,34 +185,27 @@
     }
 
     function gameLoop() {
-        masha.update();
-        dima.update();
+        if (masha.active) masha.update();
+        if (dima.active) dima.update();
         requestAnimationFrame(gameLoop);
     }
 
-    // Клик мышкой или тач
+    // Управление мышкой/тачем
     window.addEventListener('pointerdown', (e) => {
-        masha.hit(e.clientX, e.clientY);
-        dima.hit(e.clientX, e.clientY);
+        if (masha.active) masha.hit(e.clientX, e.clientY);
+        if (dima.active) dima.hit(e.clientX, e.clientY);
     });
 
     // СЕКРЕТНОЕ УПРАВЛЕНИЕ КЛАВИАТУРОЙ
     window.addEventListener('keydown', (e) => {
         if (gameEnded) return;
-        
-        // Стрелка Вверх для Димы
-        if (e.key === "ArrowUp") {
-            dima.applyKick(0); // Прямой удар вверх без смещения по X
+        if (e.key === "ArrowUp" && dima.active) {
+            dima.applyKick(0);
         }
-        
-        // Клавиша W для Маши (если играете вдвоем)
-        if (e.key.toLowerCase() === "w" && isTwo) {
+        if (e.key.toLowerCase() === "w" && masha.active) {
             masha.applyKick(0);
         }
     });
-
-</script>
-
 </script>
 </body>
 </html>
