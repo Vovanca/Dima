@@ -101,6 +101,7 @@
 <div id="dima-footer">Привет Дима, игра иногда будет обновляться. Рекорд может сброситься.</div>
 
 <script>
+<script>
     const config = { grav: 0.45, fric: 0.98, kick: -15 };
     let isTwo = false;
     let target = 10;
@@ -136,7 +137,6 @@
             if (this.x + 75 > r.width) { this.x = r.width - 75; this.vx *= -0.8; }
             if (this.y < 0) { this.y = 0; this.vy *= -0.5; }
             
-            // Если мяч упал - обнуляем счет
             if (this.y > r.height) { 
                 this.score = 0; 
                 this.scoreEl.textContent = 0; 
@@ -151,12 +151,16 @@
             const b = this.ball.getBoundingClientRect();
             const bx = b.left + 37; const by = b.top + 37;
             if (Math.hypot(cx - bx, cy - by) < 75) {
-                this.score++;
-                this.scoreEl.textContent = this.score;
-                this.vy = config.kick;
-                this.vx = (bx - cx) * 0.7;
-                if (this.score >= target) win(this.name);
+                this.applyKick(bx - cx);
             }
+        }
+        // Вынес логику удара в отдельный метод для чита
+        applyKick(forceX = 0) {
+            this.score++;
+            this.scoreEl.textContent = this.score;
+            this.vy = config.kick;
+            this.vx = forceX * 0.7;
+            if (this.score >= target) win(this.name);
         }
     }
 
@@ -164,14 +168,11 @@
     const dima = new Player('zone-dima', 'ball-dima', 'score-dima', 'ДИМА');
 
     function startMode(mode) {
-        // Берем число из поля ввода
         let val = parseInt(document.getElementById('targetScore').value);
         target = (val > 0) ? val : 10;
-        
         document.querySelectorAll('.goal-val').forEach(el => el.textContent = target);
         document.getElementById('menu').style.display = 'none';
         document.getElementById('game-container').style.visibility = 'visible';
-        
         isTwo = (mode === 2);
         if (isTwo) {
             document.getElementById('zone-masha').style.display = 'block';
@@ -193,15 +194,29 @@
         requestAnimationFrame(gameLoop);
     }
 
+    // Клик мышкой или тач
     window.addEventListener('pointerdown', (e) => {
-        const cx = e.clientX; const cy = e.clientY;
-        if (isTwo) {
-            if (cx < window.innerWidth / 2) masha.hit(cx, cy);
-            else dima.hit(cx, cy);
-        } else {
-            dima.hit(cx, cy);
+        masha.hit(e.clientX, e.clientY);
+        dima.hit(e.clientX, e.clientY);
+    });
+
+    // СЕКРЕТНОЕ УПРАВЛЕНИЕ КЛАВИАТУРОЙ
+    window.addEventListener('keydown', (e) => {
+        if (gameEnded) return;
+        
+        // Стрелка Вверх для Димы
+        if (e.key === "ArrowUp") {
+            dima.applyKick(0); // Прямой удар вверх без смещения по X
+        }
+        
+        // Клавиша W для Маши (если играете вдвоем)
+        if (e.key.toLowerCase() === "w" && isTwo) {
+            masha.applyKick(0);
         }
     });
+
+</script>
+
 </script>
 </body>
 </html>
