@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Создать игру 2026</title>
+    <style>
+        body { background: #1a1a1a; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .card { background: #2d3436; padding: 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        input { padding: 12px; border-radius: 10px; border: none; width: 200px; margin-bottom: 20px; font-size: 16px; }
+        button { padding: 15px 30px; background: gold; border: none; border-radius: 50px; font-weight: bold; cursor: pointer; }
+        #output { margin-top: 20px; display: none; }
+        .code-box { font-size: 32px; color: gold; font-weight: bold; letter-spacing: 5px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>ФУТБОЛ 2026</h2>
+    <p>Введите ваше имя:</p>
+    <input type="text" id="userName" placeholder="Напр: Дима">
+    <br>
+    <button onclick="generateCode()">ПОЛУЧИТЬ КОД ДЛЯ МАШИ</button>
+
+    <div id="output">
+        <p>Отправь этот код Маше:</p>
+        <div class="code-box" id="resultCode">XXXX</div>
+        <button style="background: #3498db; color: white;" onclick="window.location.href='online.html'">ПЕРЕЙТИ К ИГРЕ</button>
+    </div>
+</div>
+
+<script>
+    function generateCode() {
+        const name = document.getElementById('userName').value;
+        if(!name) return alert("Введите имя!");
+        
+        // Генерируем код
+        const code = Math.random().toString(36).substring(2, 6).toUpperCase();
+        
+        // Сохраняем имя и код в память браузера, чтобы online.html их подхватил
+        localStorage.setItem('tempName', name);
+        localStorage.setItem('tempCode', code);
+
+        document.getElementById('resultCode').innerText = code;
+        document.getElementById('output').style.display = 'block';
+    }
+</script>
+</body>
+</html>
+
