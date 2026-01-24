@@ -1,101 +1,145 @@
-
-
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Football Online Battle</title>
+    <!-- Стабильные библиотеки Firebase 8-й версии (лучшие для мобилок) -->
     <script src="https://www.gstatic.com"></script>
     <script src="https://www.gstatic.com"></script>
     <style>
-        body { margin: 0; background: #1a1a1a; color: white; font-family: sans-serif; overflow: hidden; touch-action: none; text-align: center; }
-        #join-screen { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
-        #game { display: none; width: 100vw; height: 100vh; background: #2ecc71; position: relative; }
-        .ball { position: absolute; width: 60px; height: 60px; background: white; border-radius: 50%; border: 3px solid #333; transform: translateX(-50%); transition: top 0.1s linear; }
-        .ball-name { position: absolute; top: -25px; width: 100px; left: -20px; font-size: 12px; font-weight: bold; }
-        input { padding: 12px; border-radius: 10px; border: none; margin: 10px; text-align: center; }
-        button { padding: 15px 30px; background: gold; border: none; border-radius: 50px; font-weight: bold; cursor: pointer; }
+        body { margin: 0; background: #1a1a1a; font-family: 'Segoe UI', sans-serif; color: white; text-align: center; touch-action: none; overflow: hidden; }
+        #menu { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 15px; }
+        input { padding: 12px; border-radius: 10px; border: 2px solid gold; width: 220px; background: #2d3436; color: white; text-align: center; font-size: 18px; outline: none; }
+        button { padding: 15px 30px; border-radius: 50px; border: none; background: gold; color: black; font-weight: bold; font-size: 18px; cursor: pointer; width: 240px; }
+        #game { display: none; width: 100vw; height: 100vh; background: #2ecc71; background-image: radial-gradient(#27ae60 2px, transparent 2px); background-size: 30px 30px; position: relative; }
+        .ball { position: absolute; width: 65px; height: 65px; background: white; border-radius: 50%; border: 3px solid #333; transform: translateX(-50%); transition: top 0.1s linear; }
+        .ball-name { position: absolute; top: -25px; width: 150px; left: -42px; text-align: center; font-size: 12px; font-weight: bold; color: white; text-shadow: 1px 1px 2px black; }
+        #ui { position: absolute; top: 20px; width: 100%; pointer-events: none; z-index: 100; }
     </style>
 </head>
 <body>
 
-<div id="join-screen">
-    <h2>ВХОД В ИГРУ</h2>
-    <input type="text" id="playerName" placeholder="Ваше имя">
-    <input type="text" id="gameCode" placeholder="Введите код игры">
-    <button onclick="connect()">ВОЙТИ И ИГРАТЬ</button>
+<div id="menu">
+    <h2 style="color: gold;">ВХОД В ИГРУ</h2>
+    <div id="status" style="font-size: 12px; color: #ff7675;">Ожидание...</div>
+    <input type="text" id="nickInput" placeholder="Твоё имя">
+    <input type="text" id="roomInput" placeholder="Код комнаты">
+    <button onclick="enterGame()">ИГРАТЬ</button>
 </div>
 
 <div id="game">
-    <div id="ui" style="padding: 20px; font-size: 24px;">Счёт: <span id="myScore">0</span></div>
+    <div id="ui">
+        <div style="font-size: 14px; opacity: 0.8;">КОД: <span id="room-id">...</span></div>
+        <div id="my-score" style="font-size: 40px; font-weight: 900;">0</div>
+    </div>
     <div id="field"></div>
 </div>
 
 <script>
+    // 1. Твои ключи Firebase (актуальные на 2026 год)
     const firebaseConfig = {
         apiKey: "AIzaSyAAvBTIamQLMW2FvHBiA0LDr_TkW7YajVU",
         databaseURL: "https://football-3b1a1-default-rtdb.firebaseio.com",
         projectId: "football-3b1a1"
     };
+
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
 
-    let myId = "p" + Math.floor(Math.random() * 999);
-    let myName = "";
-    let room = "";
-    let myY = 30, vy = 0, score = 0;
-
-    // Авто-вход для создателя
-    window.onload = () => {
-        const savedName = localStorage.getItem('tempName');
-        const savedCode = localStorage.getItem('tempCode');
-        if(savedName && savedCode) {
-            document.getElementById('playerName').value = savedName;
-            document.getElementById('gameCode').value = savedCode;
-            localStorage.clear(); // Очищаем, чтобы не мешало
+    // 2. ПОДХВАТ ДАННЫХ ИЗ КОДА
+    window.onload = function() {
+        const savedName = localStorage.getItem('savedName');
+        const savedCode = localStorage.getItem('savedCode');
+        
+        if (savedName && savedCode) {
+            document.getElementById('nickInput').value = savedName;
+            document.getElementById('roomInput').value = savedCode;
+            document.getElementById('status').innerText = "Данные получены! Нажми ИГРАТЬ";
+            
+            // Мы НЕ очищаем сразу, чтобы кнопка успела их считать
+            console.log("Данные подтянуты из localStorage");
         }
+    };
+
+    let myId = "p" + Math.floor(Math.random() * 9999);
+    let myName = "", roomID = "", myY = 30, vy = 0, myScore = 0;
+
+    function enterGame() {
+        myName = document.getElementById('nickInput').value.trim();
+        roomID = document.getElementById('roomInput').value.trim().toUpperCase();
+
+        if (!myName || !roomID) return alert("Заполни имя и код!");
+
+        const playerRef = db.ref('matches/' + roomID + '/' + myId);
+        
+        playerRef.set({ name: myName, y: 30, score: 0 }).then(() => {
+            document.getElementById('menu').style.display = 'none';
+            document.getElementById('game').style.display = 'block';
+            document.getElementById('room-id').innerText = roomID;
+
+            // Чистим память после успешного входа
+            localStorage.removeItem('savedName');
+            localStorage.removeItem('savedCode');
+
+            startPhysics(playerRef);
+            listenPlayers();
+        }).catch(err => alert("Ошибка базы: " + err.message));
+
+        playerRef.onDisconnect().remove();
     }
 
-    function connect() {
-        myName = document.getElementById('playerName').value;
-        room = document.getElementById('gameCode').value.toUpperCase();
-        if(!myName || !room) return alert("Заполните все поля!");
-
-        document.getElementById('join-screen').style.display = 'none';
-        document.getElementById('game').style.display = 'block';
-
-        const playerRef = db.ref('matches/' + room + '/' + myId);
-        playerRef.set({ name: myName, y: 30, s: 0 });
-        playerRef.onDisconnect().remove();
-
-        // Физика
+    function startPhysics(ref) {
         setInterval(() => {
-            vy += 0.5; myY += vy;
-            if(myY > 90) { myY = 30; vy = 0; score = 0; }
-            if(myY < 0) { myY = 0; vy = 0; }
-            playerRef.update({ y: myY, s: score });
-            document.getElementById('myScore').innerText = score;
-        }, 30);
+            vy += 0.45; myY += vy;
+            if (myY > 92) { myY = 30; vy = 0; myScore = 0; }
+            if (myY < 0) { myY = 0; vy = 0; }
 
-        // Отрисовка всех
-        db.ref('matches/' + room).on('value', (snap) => {
+            // Плавное движение своего мяча
+            const me = document.getElementById('ball-' + myId);
+            if (me) me.style.top = myY + "%";
+            document.getElementById('my-score').innerText = myScore;
+
+            ref.update({ y: myY, score: myScore });
+        }, 33);
+    }
+
+    function listenPlayers() {
+        db.ref('matches/' + roomID).on('value', (snap) => {
             const data = snap.val();
             const field = document.getElementById('field');
-            field.innerHTML = "";
-            for(let id in data) {
-                const b = document.createElement('div');
-                b.className = 'ball';
-                b.style.top = data[id].y + "%";
-                b.style.left = (id === myId) ? "30%" : "70%";
-                b.innerHTML = `<div class="ball-name">${data[id].name} [${data[id].s}]</div>`;
-                if(id === myId) b.style.borderColor = "gold";
-                field.appendChild(b);
-            }
+            if (!data) return;
+
+            // Удаляем мячи тех, кто вышел
+            const currentIds = Object.keys(data);
+            document.querySelectorAll('.ball').forEach(el => {
+                if (!currentIds.includes(el.id.replace('ball-', ''))) el.remove();
+            });
+
+            currentIds.forEach(id => {
+                let ball = document.getElementById('ball-' + id);
+                if (!ball) {
+                    ball = document.createElement('div');
+                    ball.id = 'ball-' + id;
+                    ball.className = 'ball';
+                    ball.innerHTML = `<div class="ball-name"></div>`;
+                    field.appendChild(ball);
+                }
+                
+                ball.style.left = (id === myId) ? "35%" : "65%";
+                if (id !== myId) ball.style.top = data[id].y + "%";
+                ball.querySelector('.ball-name').innerText = data[id].name + ": " + data[id].score;
+                if (id === myId) ball.style.borderColor = "gold";
+            });
         });
     }
 
-    window.onpointerdown = () => { vy = -12; score++; };
+    window.onpointerdown = (e) => {
+        if (document.getElementById('game').style.display === 'block' && e.target.tagName !== 'BUTTON') {
+            vy = -13; myScore++;
+        }
+    };
 </script>
 </body>
 </html>
