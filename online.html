@@ -1,14 +1,13 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <script src="https://www.gstatic.com"></script>
-<script src="https://www.gstatic.com"></script>
-
-    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Football Online Battle</title>
-    <!-- Стабильные библиотеки Firebase 8-й версии (лучшие для мобилок) -->
+    
+    <!-- ИСПРАВЛЕНО: Правильные библиотеки Firebase 8.x -->
+    <script src="https://www.gstatic.com"></script>
+    <script src="https://www.gstatic.com"></script>
 
     <style>
         body { margin: 0; background: #1a1a1a; font-family: 'Segoe UI', sans-serif; color: white; text-align: center; touch-action: none; overflow: hidden; }
@@ -24,11 +23,11 @@
 <body>
 
 <div id="menu">
-    <h2 style="color: gold;">ВХОД В ИГРУ</h2>
-    <div id="status" style="font-size: 12px; color: #ff7675;">Ожидание...</div>
+    <h2 style="color: gold;">ВХОД В ИГРУ (ONLINE)</h2>
+    <div id="status" style="font-size: 12px; color: #ff7675;">Подключение к Firebase...</div>
     <input type="text" id="nickInput" placeholder="Твоё имя">
     <input type="text" id="roomInput" placeholder="Код комнаты">
-    <button onclick="enterGame()">ИГРАТЬ</button>
+    <button id="joinBtn" onclick="enterGame()">ИГРАТЬ</button>
 </div>
 
 <div id="game">
@@ -40,33 +39,34 @@
 </div>
 
 <script>
-    // 1. Твои ключи Firebase (актуальные на 2026 год)
+    // Конфигурация Firebase
     const firebaseConfig = {
         apiKey: "AIzaSyAAvBTIamQLMW2FvHBiA0LDr_TkW7YajVU",
         databaseURL: "https://football-3b1a1-default-rtdb.firebaseio.com",
         projectId: "football-3b1a1"
     };
 
-    firebase.initializeApp(firebaseConfig);
+    // Инициализация с проверкой
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    } else {
+        firebase.app();
+    }
     const db = firebase.database();
-
-    // 2. ПОДХВАТ ДАННЫХ ИЗ КОДА
-    window.onload = function() {
-        const savedName = localStorage.getItem('savedName');
-        const savedCode = localStorage.getItem('savedCode');
-        
-        if (savedName && savedCode) {
-            document.getElementById('nickInput').value = savedName;
-            document.getElementById('roomInput').value = savedCode;
-            document.getElementById('status').innerText = "Данные получены! Нажми ИГРАТЬ";
-            
-            // Мы НЕ очищаем сразу, чтобы кнопка успела их считать
-            console.log("Данные подтянуты из localStorage");
-        }
-    };
 
     let myId = "p" + Math.floor(Math.random() * 9999);
     let myName = "", roomID = "", myY = 30, vy = 0, myScore = 0;
+
+    // Проверка связи при загрузке
+    db.ref(".info/connected").on("value", (snap) => {
+        if (snap.val() === true) {
+            document.getElementById('status').innerText = "Онлайн: Готов к игре";
+            document.getElementById('status').style.color = "#2ecc71";
+        } else {
+            document.getElementById('status').innerText = "Ошибка: Нет связи с базой";
+            document.getElementById('status').style.color = "#ff7675";
+        }
+    });
 
     function enterGame() {
         myName = document.getElementById('nickInput').value.trim();
@@ -76,18 +76,19 @@
 
         const playerRef = db.ref('matches/' + roomID + '/' + myId);
         
+        // Попытка записать данные
         playerRef.set({ name: myName, y: 30, score: 0 }).then(() => {
+            console.log("Успешный вход в комнату:", roomID);
             document.getElementById('menu').style.display = 'none';
             document.getElementById('game').style.display = 'block';
             document.getElementById('room-id').innerText = roomID;
 
-            // Чистим память после успешного входа
-            localStorage.removeItem('savedName');
-            localStorage.removeItem('savedCode');
-
             startPhysics(playerRef);
             listenPlayers();
-        }).catch(err => alert("Ошибка базы: " + err.message));
+        }).catch(err => {
+            console.error("Ошибка Firebase:", err);
+            alert("Ошибка базы: " + err.message);
+        });
 
         playerRef.onDisconnect().remove();
     }
@@ -98,7 +99,6 @@
             if (myY > 92) { myY = 30; vy = 0; myScore = 0; }
             if (myY < 0) { myY = 0; vy = 0; }
 
-            // Плавное движение своего мяча
             const me = document.getElementById('ball-' + myId);
             if (me) me.style.top = myY + "%";
             document.getElementById('my-score').innerText = myScore;
@@ -113,7 +113,6 @@
             const field = document.getElementById('field');
             if (!data) return;
 
-            // Удаляем мячи тех, кто вышел
             const currentIds = Object.keys(data);
             document.querySelectorAll('.ball').forEach(el => {
                 if (!currentIds.includes(el.id.replace('ball-', ''))) el.remove();
