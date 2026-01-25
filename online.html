@@ -7,86 +7,136 @@
     <script src="https://js.pusher.com"></script>
     <style>
         body { margin: 0; background: #1a1a1a; font-family: sans-serif; color: white; text-align: center; touch-action: none; overflow: hidden; }
-        #menu { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 15px; }
+        .menu-container { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 15px; }
         input { padding: 12px; border-radius: 10px; border: 2px solid #3498db; width: 220px; background: #2d3436; color: white; text-align: center; font-size: 18px; outline: none; }
         button { padding: 15px 30px; border-radius: 50px; border: none; background: #3498db; color: white; font-weight: bold; font-size: 18px; cursor: pointer; width: 240px; }
-        button:disabled { background: #555; opacity: 0.5; }
+        button.offline-btn { background: #2ecc71; }
         #game { display: none; width: 100vw; height: 100vh; background: #27ae60; position: relative; }
         .ball { position: absolute; width: 60px; height: 60px; background: white; border-radius: 50%; border: 3px solid #333; transform: translateX(-50%); }
         .ball-name { position: absolute; top: -25px; width: 150px; left: -45px; text-align: center; font-size: 12px; font-weight: bold; }
+        #game-ui { position: absolute; top: 10px; width: 100%; display: flex; justify-content: space-between; padding: 0 20px; box-sizing: border-box; }
     </style>
 </head>
 <body>
 
-<div id="menu">
-    <h2 style="color: #3498db;">FOOTBALL ONLINE</h2>
-    <div id="status" style="font-size: 12px; margin-bottom: 10px;">Статус: Ожидание</div>
+<div id="main-menu" class="menu-container">
+    <h2>FOOTBALL MENU</h2>
+    <button class="offline-btn" onclick="startGameOffline()">ИГРАТЬ ОФФЛАЙН</button>
+    <button onclick="showOnlineMenu()">ИГРАТЬ ОНЛАЙН</button>
+</div>
+
+<div id="online-menu" class="menu-container" style="display: none;">
+    <h2>ОНЛАЙН ЛОББИ</h2>
+    <div id="status" style="font-size: 12px; margin-bottom: 10px;">Статус: Введите данные</div>
     <input type="text" id="nickInput" placeholder="Твой ник">
-    <input type="text" id="roomInput" placeholder="Код комнаты">
-    <button id="startBtn" onclick="enterGame()">ИГРАТЬ</button>
+    <input type="text" id="roomInput" placeholder="Код комнаты (напр. 777)">
+    <button onclick="enterGame()">СОЗДАТЬ/ВОЙТИ</button>
+    <button class="offline-btn" onclick="showMainMenu()">НАЗАД</button>
 </div>
 
 <div id="game">
+    <div id="game-ui">
+        <span id="score">Счет: 0</span>
+        <button onclick="exitToMenu()" style="width: auto; padding: 5px 15px;">ВЫХОД</button>
+    </div>
     <div id="field"></div>
 </div>
 
 <script>
-    // Твои ключи (Актуально на 2026)
+    // Твои ключи Pusher
     const PUSHER_KEY = '189157bc79f7fa997ad7'; 
     const PUSHER_CLUSTER = 'mt1';
 
-    let pusher, channel;
+    let pusher, channel, gameInterval;
     let myId = "p" + Math.floor(Math.random() * 9999);
-    let myY = 30, vy = 0, myName = "", isConnected = false;
+    let myY = 30, vy = 0, myName = "", gameState = 'menu';
+    let secondPlayerId = null;
 
+    // --- Управление меню ---
+    function showMainMenu() {
+        document.getElementById('main-menu').style.display = 'flex';
+        document.getElementById('online-menu').style.display = 'none';
+        document.getElementById('game').style.display = 'none';
+        gameState = 'menu';
+    }
+
+    function showOnlineMenu() {
+        document.getElementById('main-menu').style.display = 'none';
+        document.getElementById('online-menu').style.display = 'flex';
+        document.getElementById('game').style.display = 'none';
+    }
+
+    function exitToMenu() {
+        clearInterval(gameInterval);
+        if (channel) {
+            pusher.unsubscribe(channel.name);
+            pusher.disconnect();
+        }
+        // Очищаем поле от всех мячей
+        document.getElementById('field').innerHTML = '';
+        secondPlayerId = null;
+        myY = 30; vy = 0;
+        showMainMenu();
+    }
+
+    // --- Оффлайн игра (по запросу) ---
+    function startGameOffline() {
+        showGameScreen();
+        gameState = 'offline';
+        myName = "Offline Player";
+        secondPlayerId = null; // В оффлайне нет второго игрока
+        gameInterval = setInterval(gameLoop, 50);
+    }
+    
+    // --- Онлайн игра (Лобби) ---
     function enterGame() {
         myName = document.getElementById('nickInput').value.trim();
         let room = document.getElementById('roomInput').value.trim().toLowerCase();
-        
         if (!myName || !room) return alert("Заполни все поля!");
-        
-        document.getElementById('startBtn').disabled = true;
-        document.getElementById('status').innerText = "Подключение...";
 
-        // Инициализация Pusher
+        document.getElementById('status').innerText = "Ожидание второго игрока...";
+        gameState = 'online-lobby';
+
         pusher = new Pusher(PUSHER_KEY, { cluster: PUSHER_CLUSTER, forceTLS: true });
-        
-        // ВАЖНО: Используем 'public-' для тестов, если 'cache-' блокируется
         channel = pusher.subscribe('public-room-' + room);
 
-        // Ждем успешной подписки, прежде чем начать игру
-        channel.bind('pusher:subscription_succeeded', () => {
-            isConnected = true;
-            document.getElementById('menu').style.display = 'none';
-            document.getElementById('game').style.display = 'block';
-            
-            startGameLoop();
-        });
+        channel.bind('pusher:subscription_succeeded', showGameScreen);
 
-        // Слушаем других
+        // Слушаем движения других
         channel.bind('client-move', (data) => {
-            if (data.id !== myId) updateBall(data.id, data.name, data.y);
+            if (data.id !== myId) {
+                // Как только видим второго игрока, начинаем полноценную игру
+                if (gameState === 'online-lobby') {
+                    gameState = 'online-game';
+                    secondPlayerId = data.id;
+                    document.getElementById('status').innerText = "Игра началась!";
+                    // Тут можно добавить алерт или звуковой сигнал
+                }
+                updateBall(data.id, data.name, data.y, data.score);
+            }
         });
 
-        // Если ошибка
-        pusher.connection.bind('error', (err) => {
-            alert("Ошибка Pusher: " + (err.error?.message || "Нет связи"));
-            location.reload();
-        });
+        gameInterval = setInterval(gameLoop, 50);
     }
 
-    function startGameLoop() {
-        setInterval(() => {
-            vy += 0.5; myY += vy;
-            if (myY > 90) { myY = 30; vy = 0; }
-            
-            updateBall(myId, myName, myY);
+    function showGameScreen() {
+        document.getElementById('main-menu').style.display = 'none';
+        document.getElementById('online-menu').style.display = 'none';
+        document.getElementById('game').style.display = 'block';
+    }
 
-            // Отправляем данные только если канал готов
-            if (isConnected) {
-                channel.trigger('client-move', { id: myId, name: myName, y: Math.floor(myY) });
-            }
-        }, 50);
+    // --- Игровой цикл и физика ---
+    function gameLoop() {
+        vy += 0.5; myY += vy;
+        if (myY > 90) { myY = 30; vy = 0; }
+        if (myY < 0) { myY = 0; vy = 0; }
+        
+        updateBall(myId, myName, myY);
+
+        if (gameState === 'online-game' || gameState === 'online-lobby') {
+             // Отправляем данные только если мы в онлайне
+            channel.trigger('client-move', { id: myId, name: myName, y: Math.floor(myY) });
+        }
     }
 
     function updateBall(id, name, y) {
@@ -98,14 +148,23 @@
             ball.innerHTML = `<div class="ball-name"></div>`;
             document.getElementById('field').appendChild(ball);
         }
-        ball.style.left = (id === myId) ? "30%" : "70%";
+        // В онлайне игроки слева и справа. В оффлайне только один слева.
+        if (gameState === 'online-game' || gameState === 'online-lobby') {
+           ball.style.left = (id === myId) ? "30%" : "70%";
+        } else if (gameState === 'offline') {
+           ball.style.left = "50%";
+        }
+
         ball.style.top = y + "%";
         ball.querySelector('.ball-name').innerText = name;
         if (id === myId) ball.style.borderColor = "gold";
     }
 
-    window.onpointerdown = () => {
-        if (document.getElementById('game').style.display === 'block') vy = -12;
+    // Управление прыжком
+    window.onpointerdown = (e) => {
+        if (document.getElementById('game').style.display === 'block') {
+            vy = -12;
+        }
     };
 </script>
 </body>
