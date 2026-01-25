@@ -1,149 +1,91 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-    <script src="https://cdnjs.cloudflare.com"></script>
-<script src="https://cdnjs.cloudflare.com"></script>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Football Online Battle</title>
-    
-    <!-- ИСПРАВЛЕНО: Правильные библиотеки Firebase 8.x -->
-    <script src="https://www.gstatic.com"></script>
-    <script src="https://www.gstatic.com"></script>
-
+    <title>Football Pusher Game</title>
+    <!-- Библиотека Pusher актуальная на 2026 год -->
+    <script src="https://js.pusher.com"></script>
     <style>
-        body { margin: 0; background: #1a1a1a; font-family: 'Segoe UI', sans-serif; color: white; text-align: center; touch-action: none; overflow: hidden; }
+        body { margin: 0; background: #1a1a1a; font-family: sans-serif; color: white; text-align: center; touch-action: none; overflow: hidden; }
         #menu { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; gap: 15px; }
-        input { padding: 12px; border-radius: 10px; border: 2px solid gold; width: 220px; background: #2d3436; color: white; text-align: center; font-size: 18px; outline: none; }
-        button { padding: 15px 30px; border-radius: 50px; border: none; background: gold; color: black; font-weight: bold; font-size: 18px; cursor: pointer; width: 240px; }
-        #game { display: none; width: 100vw; height: 100vh; background: #2ecc71; background-image: radial-gradient(#27ae60 2px, transparent 2px); background-size: 30px 30px; position: relative; }
-        .ball { position: absolute; width: 65px; height: 65px; background: white; border-radius: 50%; border: 3px solid #333; transform: translateX(-50%); transition: top 0.1s linear; }
-        .ball-name { position: absolute; top: -25px; width: 150px; left: -42px; text-align: center; font-size: 12px; font-weight: bold; color: white; text-shadow: 1px 1px 2px black; }
-        #ui { position: absolute; top: 20px; width: 100%; pointer-events: none; z-index: 100; }
+        input { padding: 12px; border-radius: 10px; border: 2px solid #3498db; width: 220px; background: #2d3436; color: white; text-align: center; }
+        button { padding: 15px 30px; border-radius: 50px; border: none; background: #3498db; color: white; font-weight: bold; cursor: pointer; width: 240px; }
+        #game { display: none; width: 100vw; height: 100vh; background: #27ae60; position: relative; }
+        .ball { position: absolute; width: 60px; height: 60px; background: white; border-radius: 50%; border: 3px solid #333; transform: translateX(-50%); transition: top 0.05s linear; }
+        .ball-name { position: absolute; top: -25px; width: 150px; left: -45px; text-align: center; font-size: 12px; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div id="menu">
-    <h2 style="color: gold;">ВХОД В ИГРУ (ONLINE)</h2>
-    <div id="status" style="font-size: 12px; color: #ff7675;">Подключение к Firebase...</div>
-    <input type="text" id="nickInput" placeholder="Твоё имя">
-    <input type="text" id="roomInput" placeholder="Код комнаты">
-    <button id="joinBtn" onclick="enterGame()">ИГРАТЬ</button>
+    <h2>FOOTBALL ONLINE</h2>
+    <div id="status" style="font-size: 12px; color: #3498db;">Готов к подключению</div>
+    <input type="text" id="nickInput" placeholder="Твой ник">
+    <input type="text" id="roomInput" placeholder="Код комнаты (напр. 777)">
+    <button onclick="enterGame()">ИГРАТЬ</button>
 </div>
 
 <div id="game">
-    <div id="ui">
-        <div style="font-size: 14px; opacity: 0.8;">КОД: <span id="room-id">...</span></div>
-        <div id="my-score" style="font-size: 40px; font-weight: 900;">0</div>
-    </div>
     <div id="field"></div>
 </div>
 
 <script>
-    // Конфигурация Firebase
-    const firebaseConfig = {
-        apiKey: "AIzaSyAAvBTIamQLMW2FvHBiA0LDr_TkW7YajVU",
-        databaseURL: "https://football-3b1a1-default-rtdb.firebaseio.com",
-        projectId: "football-3b1a1"
-    };
+    // ТВОИ ДАННЫЕ ИЗ СКРИНШОТА
+    const PUSHER_KEY = '189157bc79f7fa997ad7'; 
+    const PUSHER_CLUSTER = 'mt1';
 
-    // Инициализация с проверкой
-    if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-    } else {
-        firebase.app();
-    }
-    const db = firebase.database();
-
+    let pusher, channel;
     let myId = "p" + Math.floor(Math.random() * 9999);
-    let myName = "", roomID = "", myY = 30, vy = 0, myScore = 0;
-
-    // Проверка связи при загрузке
-    db.ref(".info/connected").on("value", (snap) => {
-        if (snap.val() === true) {
-            document.getElementById('status').innerText = "Онлайн: Готов к игре";
-            document.getElementById('status').style.color = "#2ecc71";
-        } else {
-            document.getElementById('status').innerText = "Ошибка: Нет связи с базой";
-            document.getElementById('status').style.color = "#ff7675";
-        }
-    });
+    let myY = 30, vy = 0, myName = "", roomID = "";
 
     function enterGame() {
         myName = document.getElementById('nickInput').value.trim();
-        roomID = document.getElementById('roomInput').value.trim().toUpperCase();
+        roomID = document.getElementById('roomInput').value.trim().toLowerCase();
+        if (!myName || !roomID) return alert("Введи ник и комнату!");
 
-        if (!myName || !roomID) return alert("Заполни имя и код!");
-
-        const playerRef = db.ref('matches/' + roomID + '/' + myId);
+        // Инициализация
+        pusher = new Pusher(PUSHER_KEY, { cluster: PUSHER_CLUSTER, forceTLS: true });
         
-        // Попытка записать данные
-        playerRef.set({ name: myName, y: 30, score: 0 }).then(() => {
-            console.log("Успешный вход в комнату:", roomID);
-            document.getElementById('menu').style.display = 'none';
-            document.getElementById('game').style.display = 'block';
-            document.getElementById('room-id').innerText = roomID;
+        // ВАЖНО: Используем 'cache-' префикс для работы без сервера в 2026 году
+        channel = pusher.subscribe('cache-room-' + roomID);
 
-            startPhysics(playerRef);
-            listenPlayers();
-        }).catch(err => {
-            console.error("Ошибка Firebase:", err);
-            alert("Ошибка базы: " + err.message);
+        // Слушаем движения других
+        channel.bind('client-move', (data) => {
+            if (data.id !== myId) updateBall(data.id, data.name, data.y);
         });
 
-        playerRef.onDisconnect().remove();
-    }
+        document.getElementById('menu').style.display = 'none';
+        document.getElementById('game').style.display = 'block';
 
-    function startPhysics(ref) {
+        // Физика и отправка данных
         setInterval(() => {
-            vy += 0.45; myY += vy;
-            if (myY > 92) { myY = 30; vy = 0; myScore = 0; }
-            if (myY < 0) { myY = 0; vy = 0; }
-
-            const me = document.getElementById('ball-' + myId);
-            if (me) me.style.top = myY + "%";
-            document.getElementById('my-score').innerText = myScore;
-
-            ref.update({ y: myY, score: myScore });
-        }, 33);
+            vy += 0.5; myY += vy;
+            if (myY > 90) { myY = 30; vy = 0; }
+            updateBall(myId, myName, myY);
+            
+            // Сообщаем другим, где наш мяч
+            channel.trigger('client-move', { id: myId, name: myName, y: myY });
+        }, 50);
     }
 
-    function listenPlayers() {
-        db.ref('matches/' + roomID).on('value', (snap) => {
-            const data = snap.val();
-            const field = document.getElementById('field');
-            if (!data) return;
-
-            const currentIds = Object.keys(data);
-            document.querySelectorAll('.ball').forEach(el => {
-                if (!currentIds.includes(el.id.replace('ball-', ''))) el.remove();
-            });
-
-            currentIds.forEach(id => {
-                let ball = document.getElementById('ball-' + id);
-                if (!ball) {
-                    ball = document.createElement('div');
-                    ball.id = 'ball-' + id;
-                    ball.className = 'ball';
-                    ball.innerHTML = `<div class="ball-name"></div>`;
-                    field.appendChild(ball);
-                }
-                
-                ball.style.left = (id === myId) ? "35%" : "65%";
-                if (id !== myId) ball.style.top = data[id].y + "%";
-                ball.querySelector('.ball-name').innerText = data[id].name + ": " + data[id].score;
-                if (id === myId) ball.style.borderColor = "gold";
-            });
-        });
-    }
-
-    window.onpointerdown = (e) => {
-        if (document.getElementById('game').style.display === 'block' && e.target.tagName !== 'BUTTON') {
-            vy = -13; myScore++;
+    function updateBall(id, name, y) {
+        let ball = document.getElementById('ball-' + id);
+        if (!ball) {
+            ball = document.createElement('div');
+            ball.id = 'ball-' + id;
+            ball.className = 'ball';
+            ball.innerHTML = `<div class="ball-name"></div>`;
+            document.getElementById('field').appendChild(ball);
         }
-    };
+        ball.style.left = (id === myId) ? "30%" : "70%";
+        ball.style.top = y + "%";
+        ball.querySelector('.ball-name').innerText = name;
+        if (id === myId) ball.style.borderColor = "gold";
+    }
+
+    // Прыжок
+    window.onpointerdown = () => { if(document.getElementById('game').style.display === 'block') vy = -12; };
 </script>
 </body>
 </html>
