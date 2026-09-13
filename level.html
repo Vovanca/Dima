@@ -3,184 +3,227 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Football Levels Pro 2026</title>
+    <title>20 Уровней — Football Duel 2026</title>
     <style>
-        :root { --gold: #f1c40f; --dark: #1e272e; }
-        body { margin: 0; padding: 0; overflow: hidden; background: #1a1a1a; font-family: 'Segoe UI', sans-serif; touch-action: none; user-select: none; }
-        
-        /* Главное меню выбора уровней */
-        #level-menu { position: fixed; inset: 0; background: var(--dark); z-index: 1000; display: flex; flex-direction: column; align-items: center; padding: 20px; overflow-y: auto; }
-        .level-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-top: 20px; }
-        .level-card { width: 60px; height: 60px; background: #34495e; display: flex; align-items: center; justify-content: center; border-radius: 12px; cursor: pointer; font-weight: bold; color: white; border: 2px solid transparent; }
-        .level-card.unlocked { background: #27ae60; }
-        .level-card.locked { opacity: 0.3; cursor: not-allowed; }
-        .level-card.current { border-color: var(--gold); box-shadow: 0 0 15px var(--gold); }
+        :root { --dima: #74b9ff; --masha: #ff7675; --gold: #fdcb6e; }
+        * { box-sizing: border-box; touch-action: none; user-select: none; }
+        body { margin: 0; padding: 0; overflow: hidden; background: #1e272e; font-family: 'Segoe UI', sans-serif; }
 
-        /* Пауза */
-        #pause-screen { position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 500; display: none; flex-direction: column; align-items: center; justify-content: center; }
-        
-        /* Игра */
-        #game-container { position: relative; width: 100vw; height: 100vh; background: #2ecc71; display: none; }
-        .wall { position: absolute; top: 0; bottom: 0; background: #2c3e50; width: 0; transition: 0.5s; z-index: 5; }
-        #ball { position: absolute; width: 60px; height: 60px; background: white; border-radius: 50%; border: 3px solid #333; z-index: 10; background-image: radial-gradient(circle at 30% 30%, #fff, #ccc); }
-        
-        .btn { padding: 12px 25px; background: var(--gold); border: none; border-radius: 30px; font-weight: bold; cursor: pointer; margin: 10px; font-size: 16px; }
-        #pause-btn { position: absolute; top: 20px; right: 20px; z-index: 100; background: rgba(0,0,0,0.3); color: white; border-radius: 50%; width: 45px; height: 45px; border: 2px solid white; font-size: 20px; }
-        
-        #ui { position: absolute; top: 20px; left: 20px; color: white; pointer-events: none; z-index: 100; }
+        /* Экран выбора уровней */
+        #level-select {
+            position: fixed; inset: 0; background: #1e272e;
+            display: flex; flex-direction: column; align-items: center; z-index: 1000;
+            padding: 20px; overflow-y: auto;
+        }
+        h1 { color: white; margin-bottom: 5px; }
+        .hero-picker { display: flex; gap: 10px; margin-bottom: 15px; }
+        .hero-btn {
+            padding: 8px 16px; border-radius: 20px; border: 2px solid white;
+            background: rgba(255,255,255,0.1); color: white; font-weight: bold; cursor: pointer;
+        }
+        .hero-btn.active { background: var(--gold); color: black; border-color: var(--gold); }
+
+        .grid {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+            width: 100%; max-width: 360px; margin-bottom: 20px;
+        }
+        .lvl-btn {
+            aspect-ratio: 1; border-radius: 14px; border: none;
+            background: #2d3436; color: white; font-size: 18px; font-weight: bold;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3); cursor: pointer;
+        }
+        .lvl-btn.active { background: var(--dima); color: white; }
+        .lvl-btn.completed { background: #00b894; color: white; }
+        .lvl-btn.locked { opacity: 0.4; pointer-events: none; }
+
+        .btn-back {
+            padding: 12px 30px; border-radius: 50px; border: none;
+            background: #636e72; color: white; font-weight: bold; cursor: pointer;
+        }
+
+        /* Игровое поле */
+        #game-area { position: relative; width: 100vw; height: 100vh; display: none; }
+        .ball {
+            position: absolute; width: 70px; height: 70px; background: white;
+            background-image: radial-gradient(circle at 50% 50%, #333 22%, transparent 24%);
+            background-size: 35px 35px; border-radius: 50%; box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+            z-index: 10; will-change: transform;
+        }
+        .hud {
+            position: absolute; top: 5%; width: 100%; text-align: center; color: white;
+            pointer-events: none; z-index: 20;
+        }
+        .target-txt { font-size: 14px; color: var(--gold); }
+        .score-txt { font-size: 48px; font-weight: bold; margin: 0; }
+
+        #win-modal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+            display: none; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 2000; color: white;
+        }
     </style>
 </head>
 <body>
 
-<!-- МЕНЮ ВЫБОРА УРОВНЕЙ -->
-<div id="level-menu">
-    <h1 style="color: var(--gold);">УРОВНИ (2026)</h1>
-    <div style="color: #aaa; margin-bottom: 10px;">Пройдено: <span id="stats-done">0</span> / 20</div>
-    <div class="level-grid" id="grid"></div>
-    <button class="btn" style="margin-top: 30px;" onclick="location.href='index.html'">В МЕНЮ ИГРЫ</button>
-</div>
-
-<!-- ЭКРАН ПАУЗЫ -->
-<div id="pause-screen">
-    <h2 style="color: white;">ПАУЗА</h2>
-    <button class="btn" onclick="togglePause(false)">ПРОДОЛЖИТЬ</button>
-    <button class="btn" style="background: #e74c3c; color: white;" onclick="exitToMenu()">ВЫЙТИ ИЗ УРОВНЯ</button>
-</div>
-
-<!-- ИГРОВОЙ ПРОЦЕСС -->
-<div id="game-container">
-    <button id="pause-btn" onclick="togglePause(true)">II</button>
-    <div id="ui">
-        <div style="font-size: 14px;">УРОВЕНЬ <span id="cur-lvl-txt">1</span></div>
-        <div style="font-size: 32px; font-weight: 900;" id="score-txt">0</div>
-        <div style="font-size: 12px;">ЦЕЛЬ: <span id="target-txt">5</span></div>
+<div id="level-select">
+    <h1>20 УРОВНЕЙ</h1>
+    <div class="hero-picker">
+        <button id="hero-dima" class="hero-btn active" onclick="setHero('ДИМА')">ИГРАТЬ ЗА ДИМУ</button>
+        <button id="hero-masha" class="hero-btn" onclick="setHero('МАША')">ИГРАТЬ ЗА МАШУ</button>
     </div>
-    <div id="wall-left" class="wall"></div>
-    <div id="wall-right" class="wall"></div>
-    <div id="ball"></div>
+
+    <div class="grid" id="levels-grid"></div>
+
+    <button class="btn-back" onclick="window.location.href='index.html'">В МЕНЮ</button>
+</div>
+
+<div id="win-modal">
+    <h2 style="color: var(--gold); font-size: 28px;">УРОВЕНЬ ПРОЙДЕН! 🎉</h2>
+    <p id="win-desc" style="margin-bottom: 20px;">Отличное чеканение!</p>
+    <button class="btn-back" style="background: #00b894;" onclick="nextLevel()">СЛЕДУЮЩИЙ УРОВЕНЬ</button>
+    <button class="btn-back" style="margin-top: 10px;" onclick="showMenu()">К УРОВНЯМ</button>
+</div>
+
+<div id="game-area">
+    <div class="hud">
+        <div id="player-label" style="font-weight: bold; font-size: 18px;">ДИМА</div>
+        <div id="score" class="score-txt">0</div>
+        <div id="target-label" class="target-txt">ЦЕЛЬ: 5</div>
+    </div>
+    <div id="ball" class="ball"></div>
 </div>
 
 <script>
-    const TOTAL_LEVELS = 20;
-    let unlockedLevels = parseInt(localStorage.getItem('fb_unlocked')) || 1;
+    let currentHero = 'ДИМА';
     let currentLvl = 1;
     let score = 0;
-    let isPaused = false;
-    let gameActive = false;
+    let targetScore = 5;
+    let maxUnlocked = parseInt(localStorage.getItem('maxUnlockedLevel') || '1');
 
-    // Параметры физики
-    let x, y, vx, vy, config = {};
+    const ball = document.getElementById('ball');
+    const gameArea = document.getElementById('game-area');
+    
+    let bx = 0, by = 0, vx = 0, vy = 0, rot = 0;
+    let gravity = 0.45;
+    let isPlaying = false;
 
-    function initMenu() {
-        const grid = document.getElementById('grid');
-        grid.innerHTML = "";
-        document.getElementById('stats-done').textContent = unlockedLevels - 1;
+    function setHero(hero) {
+        currentHero = hero;
+        document.getElementById('hero-dima').classList.toggle('active', hero === 'ДИМА');
+        document.getElementById('hero-masha').classList.toggle('active', hero === 'МАША');
+        document.getElementById('player-label').textContent = hero;
+        document.getElementById('player-label').style.color = (hero === 'ДИМА') ? 'var(--dima)' : 'var(--masha)';
+    }
 
-        for (let i = 1; i <= TOTAL_LEVELS; i++) {
-            const card = document.createElement('div');
-            card.className = `level-card ${i <= unlockedLevels ? 'unlocked' : 'locked'} ${i === unlockedLevels ? 'current' : ''}`;
-            card.textContent = i;
-            if (i <= unlockedLevels) {
-                card.onclick = () => startLevel(i);
+    function renderLevels() {
+        const grid = document.getElementById('levels-grid');
+        grid.innerHTML = '';
+        for (let i = 1; i <= 20; i++) {
+            const btn = document.createElement('button');
+            btn.className = 'lvl-btn';
+            btn.textContent = i;
+            
+            if (i < maxUnlocked) {
+                btn.classList.add('completed');
+            } else if (i === maxUnlocked) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.add('locked');
             }
-            grid.appendChild(card);
+
+            btn.onclick = () => startLevel(i);
+            grid.appendChild(btn);
         }
     }
 
     function startLevel(lvl) {
         currentLvl = lvl;
-        gameActive = true;
-        isPaused = false;
+        targetScore = lvl * 5; // Уровень 1 = 5 очков, Уровень 2 = 10 очков и т.д.
         score = 0;
-        
-        // Сложность растет плавно
-        config = {
-            target: 5 + (lvl - 1) * 3,
-            grav: 0.4 + (lvl - 1) * 0.04,
-            walls: Math.min((lvl - 1) * 12, window.innerWidth * 0.35)
-        };
+        gravity = 0.45 + (lvl * 0.02); // Уровни становятся немного быстрее
 
-        document.getElementById('level-menu').style.display = 'none';
-        document.getElementById('game-container').style.display = 'block';
-        document.getElementById('cur-lvl-txt').textContent = lvl;
-        document.getElementById('target-txt').textContent = config.target;
-        document.getElementById('score-txt').textContent = "0";
-        
-        document.getElementById('wall-left').style.width = config.walls + 'px';
-        document.getElementById('wall-right').style.width = config.walls + 'px';
-        
-        resetBall();
-        update();
-    }
+        document.getElementById('score').textContent = score;
+        document.getElementById('target-label').textContent = `ЦЕЛЬ: ${targetScore} (Уровень ${lvl})`;
+        document.getElementById('level-select').style.display = 'none';
+        gameArea.style.display = 'block';
 
-    function resetBall() {
-        x = window.innerWidth / 2 - 30;
-        y = window.innerHeight / 3;
+        const r = gameArea.getBoundingClientRect();
+        bx = r.width / 2 - 35;
+        by = r.height / 3;
         vx = 0; vy = 0;
+        isPlaying = true;
     }
 
-    function togglePause(val) {
-        isPaused = val;
-        document.getElementById('pause-screen').style.display = val ? 'flex' : 'none';
+    gameArea.addEventListener('pointerdown', (e) => {
+        if (!isPlaying) return;
+        const b = ball.getBoundingClientRect();
+        const cx = b.left + 35;
+        const cy = b.top + 35;
+
+        if (Math.hypot(e.clientX - cx, e.clientY - cy) < 75) {
+            vy = -14 - (currentLvl * 0.2);
+            vx = (cx - e.clientX) * 0.6;
+            score++;
+            document.getElementById('score').textContent = score;
+
+            if (navigator.vibrate) navigator.vibrate(20);
+
+            if (score >= targetScore) {
+                winLevel();
+            }
+        }
+    });
+
+    function winLevel() {
+        isPlaying = false;
+        if (currentLvl >= maxUnlocked && maxUnlocked < 20) {
+            maxUnlocked = currentLvl + 1;
+            localStorage.setItem('maxUnlockedLevel', maxUnlocked);
+        }
+        document.getElementById('win-desc').textContent = `${currentHero} набил(а) ${score} очков!`;
+        document.getElementById('win-modal').style.display = 'flex';
     }
 
-    function exitToMenu() {
-        gameActive = false;
-        document.getElementById('game-container').style.display = 'none';
-        document.getElementById('pause-screen').style.display = 'none';
-        document.getElementById('level-menu').style.display = 'flex';
-        initMenu();
+    function nextLevel() {
+        document.getElementById('win-modal').style.display = 'none';
+        startLevel(Math.min(20, currentLvl + 1));
+    }
+
+    function showMenu() {
+        document.getElementById('win-modal').style.display = 'none';
+        gameArea.style.display = 'none';
+        document.getElementById('level-select').style.display = 'flex';
+        renderLevels();
     }
 
     function update() {
-        if (!gameActive || isPaused) return;
+        if (isPlaying) {
+            vy += gravity;
+            bx += vx; by += vy;
+            vx *= 0.98;
 
-        vy += config.grav;
-        x += vx; y += vy;
+            const r = gameArea.getBoundingClientRect();
+            if (bx < 0) { bx = 0; vx *= -0.8; }
+            if (bx + 70 > r.width) { bx = r.width - 70; vx *= -0.8; }
+            
+            if (by > r.height) {
+                // Падение мяча — сброс очков уровня
+                score = 0;
+                document.getElementById('score').textContent = score;
+                bx = r.width / 2 - 35;
+                by = r.height / 3;
+                vx = 0; vy = 0;
+            }
 
-        let leftBound = config.walls;
-        let rightBound = window.innerWidth - config.walls - 60;
-
-        if (x < leftBound) { x = leftBound; vx *= -0.7; }
-        if (x > rightBound) { x = rightBound; vx *= -0.7; }
-        if (y < 0) { y = 0; vy *= -0.4; }
-
-        if (y > window.innerHeight) {
-            score = 0;
-            document.getElementById('score-txt').textContent = "0";
-            resetBall();
+            rot += vx * 2;
+            ball.style.transform = `translate3d(${bx}px, ${by}px, 0) rotate(${rot}deg)`;
         }
-
-        document.getElementById('ball').style.transform = `translate(${x}px, ${y}px)`;
         requestAnimationFrame(update);
     }
 
-    window.onpointerdown = (e) => {
-        if (!gameActive || isPaused || e.target.id === 'pause-btn') return;
-        
-        const rect = document.getElementById('ball').getBoundingClientRect();
-        const bx = rect.left + 30;
-        const by = rect.top + 30;
-        
-        if (Math.hypot(e.clientX - bx, e.clientY - by) < 60) {
-            score++;
-            document.getElementById('score-txt').textContent = score;
-            vy = -13;
-            vx = (bx - e.clientX) * 0.6;
-
-            if (score >= config.target) {
-                if (currentLvl === unlockedLevels && unlockedLevels < TOTAL_LEVELS) {
-                    unlockedLevels++;
-                    localStorage.setItem('fb_unlocked', unlockedLevels);
-                }
-                alert("УРОВЕНЬ ПРОЙДЕН!");
-                exitToMenu();
-            }
-        }
-    };
-
-    initMenu();
+    renderLevels();
+    update();
 </script>
 </body>
 </html>
-
